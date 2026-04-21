@@ -41,25 +41,45 @@ public class GatherRouteExec : IDisposable
     public State CurrentState;
     public enum State
     {
+        [LocalizedDescription("None", "无")]
         None,
+        [LocalizedDescription("Waiting For Navmesh", "等待导航网格")]
         WaitingForNavmesh,
+        [LocalizedDescription("Gathering", "采集中")]
         Gathering,
+        [LocalizedDescription("Paused", "已暂停")]
         Paused,
+        [LocalizedDescription("Pathfinding", "路径规划中")]
         Pathfinding,
+        [LocalizedDescription("Moving", "移动中")]
         Moving,
+        [LocalizedDescription("Waiting For Destination", "等待到达目标")]
         WaitingForDestination,
+        [LocalizedDescription("Eating", "吃食物中")]
         Eating,
+        [LocalizedDescription("Mounting", "骑乘中")]
         Mounting,
+        [LocalizedDescription("Dismounting", "下坐骑中")]
         Dismounting,
+        [LocalizedDescription("Jumping", "跳跃中")]
         Jumping,
+        [LocalizedDescription("Job Swapping", "切换职业中")]
         JobSwapping,
+        [LocalizedDescription("Teleporting", "传送中")]
         Teleporting,
+        [LocalizedDescription("Interacting", "交互中")]
         Interacting,
+        [LocalizedDescription("Extracting Materia", "精制魔晶石中")]
         ExtractingMateria,
+        [LocalizedDescription("Purifying Collectables", "精选中")]
         PurifyingCollectables,
+        [LocalizedDescription("Repairing Gear", "修理装备中")]
         RepairingGear,
+        [LocalizedDescription("Waiting", "等待中")]
         Waiting,
+        [LocalizedDescription("Waiting For AutoRetainer", "等待 AutoRetainer")]
         WaitingForAutoRetainer,
+        [LocalizedDescription("Adjusting Position", "调整位置中")]
         AdjustingPosition,
     }
 

@@ -20,14 +20,19 @@ public class GatherRouteDB : Configuration.Node
 {
     public enum Movement
     {
+        [LocalizedDescription("Normal", "步行")]
         Normal = 0,
+        [LocalizedDescription("Flying Mount", "飞行坐骑")]
         MountFly = 1,
+        [LocalizedDescription("Ground Mount", "陆行坐骑")]
         MountNoFly = 2,
     }
 
     public enum InteractionType
     {
+        [LocalizedDescription("None", "无")]
         None = 0,
+        [LocalizedDescription("Standard", "普通交互")]
         Standard = 1,
         //Emote = 2,
         //UseItem = 3,
@@ -36,26 +41,37 @@ public class GatherRouteDB : Configuration.Node
         //Grind = 6,
         //PickupQuest = 7,
         //TurninQuest = 8,
+        [LocalizedDescription("Start Route", "启动路线")]
         StartRoute = 9,
         //EquipRecommendedGear = 10,
         //ChatCommand = 11,
+        [LocalizedDescription("Node Scan", "节点扫描")]
         NodeScan = 12,
     }
 
     public enum GrindStopConditions
     {
+        [LocalizedDescription("None", "无")]
         None = 0,
+        [LocalizedDescription("Kills", "击杀数")]
         Kills = 1,
+        [LocalizedDescription("Quest Sequence", "任务阶段")]
         QuestSequence = 2,
+        [LocalizedDescription("Quest Complete", "任务完成")]
         QuestComplete = 3,
     }
 
     public enum NodeType : byte
     {
+        [LocalizedDescription("Unknown", "未知")]
         Unknown = 0xFF,
+        [LocalizedDescription("Regular", "普通")]
         Regular = 0,
+        [LocalizedDescription("Unspoiled", "未知良材")]
         Unspoiled = 1,
+        [LocalizedDescription("Ephemeral", "传说灵砂")]
         Ephemeral = 2,
+        [LocalizedDescription("Legendary", "传说")]
         Legendary = 3,
     }
 
@@ -348,7 +364,9 @@ public class GatherRouteDB : Configuration.Node
             if (import != null)
             {
                 if (import.Waypoints.Any(x => (x.Pathfind || x.Interaction == InteractionType.NodeScan) && !NavmeshIPC.IsEnabled))
-                    Svc.Chat.Print($"[{Plugin.Name}] Imported route uses pathfinding, but vnavmesh is not installed. It's located on the same repo as {Plugin.Name} ({Plugin.Repo}).");
+                    Svc.Chat.Print(Loc.Tr(
+                        $"[{Plugin.Name}] Imported route uses pathfinding, but vnavmesh is not installed. It's located on the same repo as {Plugin.Name} ({Plugin.Repo}).",
+                        $"[{Plugin.Name}] 导入的路线使用了路径规划，但当前未安装 vnavmesh。它和 {Plugin.Name} 在同一个仓库里（{Plugin.Repo}）。"));
 
                 RouteDB.Routes.Add(new() { Name = import!.Name, Group = import.Group, Food = import.Food, Manual = import.Manual, TargetGatherItem = import.TargetGatherItem, Waypoints = import.Waypoints });
                 RouteDB.NotifyModified();
@@ -356,8 +374,8 @@ public class GatherRouteDB : Configuration.Node
         }
         catch (JsonReaderException ex)
         {
-            Service.ChatGui.PrintError($"Failed to import route: {ex.Message}");
-            Service.Log.Error(ex, "Failed to import route");
+            Service.ChatGui.PrintError(Loc.Format("Failed to import route: {0}", "导入路线失败：{0}", ex.Message));
+            Service.Log.Error(ex, Loc.Tr("Failed to import route", "导入路线失败"));
         }
     }
 }
