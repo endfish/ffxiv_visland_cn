@@ -28,29 +28,31 @@ namespace visland;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public static string Name => "visland";
+    public static string Name => "Visland-CN";
+    public static string InternalName => "visland_cn";
+    public static string CommandName => "vislandcn";
     public static string Repo => "https://puni.sh/api/repository/veyn";
     internal static string HelpMessage => Loc.Tr(
         "Opens the Gathering Menu\n" +
-        $"/{Name} moveto <X> <Y> <Z> -> move to raw coordinates\n" +
-        $"/{Name} movedir <X> <Y> <Z> -> move this many units over (relative to player facing)\n" +
-        $"/{Name} stop -> stop current route\n" +
-        $"/{Name} pause -> pause current route\n" +
-        $"/{Name} resume -> resume current route\n" +
-        $"/{Name} exec <name> -> run route by name continuously\n" +
-        $"/{Name} execonce <name> -> run route by name once\n" +
-        $"/{Name} exectemp <base64 route> -> run unsaved route continuously\n" +
-        $"/{Name} exectemponce <base64 route> -> run unsaved route once",
+        $"/{CommandName} moveto <X> <Y> <Z> -> move to raw coordinates\n" +
+        $"/{CommandName} movedir <X> <Y> <Z> -> move this many units over (relative to player facing)\n" +
+        $"/{CommandName} stop -> stop current route\n" +
+        $"/{CommandName} pause -> pause current route\n" +
+        $"/{CommandName} resume -> resume current route\n" +
+        $"/{CommandName} exec <name> -> run route by name continuously\n" +
+        $"/{CommandName} execonce <name> -> run route by name once\n" +
+        $"/{CommandName} exectemp <base64 route> -> run unsaved route continuously\n" +
+        $"/{CommandName} exectemponce <base64 route> -> run unsaved route once",
         "打开采集界面\n" +
-        $"/{Name} moveto <X> <Y> <Z> -> 移动到绝对坐标\n" +
-        $"/{Name} movedir <X> <Y> <Z> -> 按当前朝向相对移动指定距离\n" +
-        $"/{Name} stop -> 停止当前路线\n" +
-        $"/{Name} pause -> 暂停当前路线\n" +
-        $"/{Name} resume -> 恢复当前路线\n" +
-        $"/{Name} exec <name> -> 循环执行指定名称的路线\n" +
-        $"/{Name} execonce <name> -> 执行指定名称的路线一次\n" +
-        $"/{Name} exectemp <base64 route> -> 循环执行未保存的临时路线\n" +
-        $"/{Name} exectemponce <base64 route> -> 执行未保存的临时路线一次");
+        $"/{CommandName} moveto <X> <Y> <Z> -> 移动到绝对坐标\n" +
+        $"/{CommandName} movedir <X> <Y> <Z> -> 按当前朝向相对移动指定距离\n" +
+        $"/{CommandName} stop -> 停止当前路线\n" +
+        $"/{CommandName} pause -> 暂停当前路线\n" +
+        $"/{CommandName} resume -> 恢复当前路线\n" +
+        $"/{CommandName} exec <name> -> 循环执行指定名称的路线\n" +
+        $"/{CommandName} execonce <name> -> 执行指定名称的路线一次\n" +
+        $"/{CommandName} exectemp <base64 route> -> 循环执行未保存的临时路线\n" +
+        $"/{CommandName} exectemponce <base64 route> -> 执行未保存的临时路线一次");
 
     internal static Plugin P = null!;
     internal TaskManager TaskManager;
@@ -58,7 +60,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private VislandIPC _vislandIPC;
 
-    public WindowSystem WindowSystem = new("visland");
+    public WindowSystem WindowSystem = new(InternalName);
     private GatherWindow _wndGather;
     private WorkshopWindow _wndWorkshop;
     private GranaryWindow _wndGranary;
@@ -103,7 +105,7 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.AddWindow(_wndPasture);
         WindowSystem.AddWindow(_wndFarm);
         WindowSystem.AddWindow(_wndExports);
-        EzCmd.Add("/visland", OnCommand, HelpMessage);
+        EzCmd.Add($"/{CommandName}", OnCommand, HelpMessage);
         Service.Interface.UiBuilder.Draw += WindowSystem.Draw;
         Service.Interface.UiBuilder.OpenConfigUi += () => _wndGather.IsOpen = true;
         Svc.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, ["Gathering", "GatheringMasterpiece"], GenerateAddonMasters);

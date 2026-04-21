@@ -13,6 +13,8 @@ For presets, see the Wiki: https://github.com/awgil/ffxiv_visland/wiki
 
 这是 `awgil/ffxiv_visland` 的中文化分支，当前主要包含：
 
+- 插件发布名为 `Visland-CN`
+- 插件命令为 `/vislandcn`
 - 简体中文界面翻译
 - 国服 `XIVLauncherCN` / Dalamud 开发环境适配
 - 工坊排班剪贴板导入适配国服腾讯文档格式

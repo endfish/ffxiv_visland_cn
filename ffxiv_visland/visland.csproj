@@ -1,7 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/14.0.1">
 	<PropertyGroup>
-		<Version>1.0.0.0</Version>
+		<Version>1.0.1.0</Version>
+		<AssemblyName>visland_cn</AssemblyName>
+		<Author>veyn, croizat, Endfish (CN localization)</Author>
+		<Name>Visland-CN</Name>
+		<InternalName>visland_cn</InternalName>
+		<Description>自动处理采集、工坊排班等无人岛事务。</Description>
+		<Punchline>无人岛自动化工具（中文汉化版）</Punchline>
+		<ApplicableVersion>any</ApplicableVersion>
+		<RepoUrl>https://github.com/endfish/ffxiv_visland_cn</RepoUrl>
+		<DalamudApiLevel>14</DalamudApiLevel>
+		<IconUrl>https://raw.githubusercontent.com/awgil/ffxiv_visland/d3338f6ddbf54365e60fbdf8e85ea8f5abdb745f/icon.png</IconUrl>
 		<LangVersion>preview</LangVersion>
 	</PropertyGroup>
 

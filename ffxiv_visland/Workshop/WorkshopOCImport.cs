@@ -270,7 +270,7 @@ public unsafe class WorkshopOCImport
             r.Workshops.Add(o);
         }
         if (overrides.Count > Recommendations.Schedules.Count)
-            Service.ChatGui.Print(Loc.Tr("Warning: couldn't fit all overrides into base schedule", "警告：无法将所有覆盖排班完整塞入基础排班"), "visland");
+            Service.ChatGui.Print(Loc.Tr("Warning: couldn't fit all overrides into base schedule", "警告：无法将所有覆盖排班完整塞入基础排班"), Plugin.Name);
     }
 
     private void OverrideSideRecsAsapClipboard()
@@ -317,7 +317,7 @@ public unsafe class WorkshopOCImport
             nextOverride += batchSize;
         }
         if (nextOverride < overrides.Count)
-            Service.ChatGui.Print(Loc.Tr("Warning: couldn't fit all overrides into base schedule", "警告：无法将所有覆盖排班完整塞入基础排班"), "visland");
+            Service.ChatGui.Print(Loc.Tr("Warning: couldn't fit all overrides into base schedule", "警告：无法将所有覆盖排班完整塞入基础排班"), Plugin.Name);
     }
 
     private WorkshopSolver.Recs ParseRecs(string str)

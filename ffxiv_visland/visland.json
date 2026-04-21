@@ -1,9 +1,0 @@
-{
-  "Author": "veyn, croizat, Endfish (CN localization)",
-  "Name": "Visland",
-  "Punchline": "\u65e0\u4eba\u5c9b\u81ea\u52a8\u5316\u5de5\u5177",
-  "Description": "\u81ea\u52a8\u5904\u7406\u91c7\u96c6\u3001\u5de5\u574a\u6392\u73ed\u7b49\u65e0\u4eba\u5c9b\u4e8b\u52a1\u3002",
-  "InternalName": "visland",
-  "ApplicableVersion": "any",
-  "IconUrl": "https://raw.githubusercontent.com/awgil/ffxiv_visland/d3338f6ddbf54365e60fbdf8e85ea8f5abdb745f/icon.png"
-}
