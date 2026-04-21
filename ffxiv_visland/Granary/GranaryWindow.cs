@@ -12,7 +12,7 @@ unsafe class GranaryWindow : UIAttachedWindow
     private GranaryConfig _config;
     private GranaryDebug _debug;
 
-    public GranaryWindow() : base("Granary Automation", "MJIGatheringHouse", new(400, 600))
+    public GranaryWindow() : base(Loc.Tr("Granary Automation", "谷仓自动化"), "MJIGatheringHouse", new(400, 600))
     {
         _config = Service.Config.Get<GranaryConfig>();
         _debug = new();
@@ -30,10 +30,10 @@ unsafe class GranaryWindow : UIAttachedWindow
         using var tabs = ImRaii.TabBar("Tabs");
         if (tabs)
         {
-            using (var tab = ImRaii.TabItem("Main"))
+            using (var tab = ImRaii.TabItem(Loc.Tr("Main", "主界面")))
                 if (tab)
                     DrawMain();
-            using (var tab = ImRaii.TabItem("Debug"))
+            using (var tab = ImRaii.TabItem(Loc.Tr("Debug", "调试")))
                 if (tab)
                     _debug.Draw();
         }
@@ -55,11 +55,11 @@ unsafe class GranaryWindow : UIAttachedWindow
 
     private unsafe void DrawMain()
     {
-        if (UICombo.Enum("Auto Collect", ref _config.Collect))
+        if (UICombo.Enum(Loc.Tr("Auto Collect", "自动收取"), ref _config.Collect))
             _config.NotifyModified();
-        if (UICombo.Enum("Auto Reassign", ref _config.Reassign))
+        if (UICombo.Enum(Loc.Tr("Auto Reassign", "自动改派"), ref _config.Reassign))
             _config.NotifyModified();
-        if (ImGui.Button("Apply!"))
+        if (ImGui.Button(Loc.Tr("Apply!", "应用！")))
             ForceReassign();
 
         ImGui.Separator();
@@ -73,9 +73,9 @@ unsafe class GranaryWindow : UIAttachedWindow
         using var table = ImRaii.Table("table", 3);
         if (table)
         {
-            ImGui.TableSetupColumn("Expedition");
-            ImGui.TableSetupColumn("Granary 1", ImGuiTableColumnFlags.WidthFixed, 100);
-            ImGui.TableSetupColumn("Granary 2", ImGuiTableColumnFlags.WidthFixed, 100);
+            ImGui.TableSetupColumn(Loc.Tr("Expedition", "探险"));
+            ImGui.TableSetupColumn(Loc.Tr("Granary 1", "谷仓 1"), ImGuiTableColumnFlags.WidthFixed, 100);
+            ImGui.TableSetupColumn(Loc.Tr("Granary 2", "谷仓 2"), ImGuiTableColumnFlags.WidthFixed, 100);
             ImGui.TableHeadersRow();
 
             ImGui.TableNextRow();
@@ -84,7 +84,7 @@ unsafe class GranaryWindow : UIAttachedWindow
             {
                 ImGui.TableNextColumn();
                 using (ImRaii.Disabled(collectStates[i] is CollectResult.NothingToCollect or CollectResult.EverythingCapped))
-                    if (ImGui.Button($"Collect##{i}"))
+                    if (ImGui.Button($"{Loc.Tr("Collect", "收取")}##{i}"))
                         GranaryUtils.Collect(i);
             }
 
@@ -106,7 +106,7 @@ unsafe class GranaryWindow : UIAttachedWindow
                     var curDays = GranaryUtils.GetGranaryState(i)->RemainingDays;
                     var maxDays = (byte)Math.Min(7, curDays + GranaryUtils.MaxDays());
                     using (ImRaii.Disabled(collectStates[i] != CollectResult.NothingToCollect || curDest == e->ExpeditionId && curDays == maxDays))
-                        if (ImGui.Button($"{(curDest == e->ExpeditionId ? "Max" : "Reassign")}##{i}_{e->ExpeditionId}"))
+                        if (ImGui.Button($"{(curDest == e->ExpeditionId ? Loc.Tr("Max", "补满") : Loc.Tr("Reassign", "改派"))}##{i}_{e->ExpeditionId}"))
                             GranaryUtils.SelectExpedition((byte)i, e->ExpeditionId, maxDays);
                 }
             }

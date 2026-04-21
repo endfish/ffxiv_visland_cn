@@ -12,7 +12,7 @@ unsafe class PastureWindow : UIAttachedWindow
     private PastureConfig _config;
     private PastureDebug _debug = new();
 
-    public PastureWindow() : base("Pasture Automation", "MJIAnimalManagement", new(400, 600))
+    public PastureWindow() : base(Loc.Tr("Pasture Automation", "牧场自动化"), "MJIAnimalManagement", new(400, 600))
     {
         _config = Service.Config.Get<PastureConfig>();
     }
@@ -41,10 +41,10 @@ unsafe class PastureWindow : UIAttachedWindow
         using var tabs = ImRaii.TabBar("Tabs");
         if (tabs)
         {
-            using (var tab = ImRaii.TabItem("Main"))
+            using (var tab = ImRaii.TabItem(Loc.Tr("Main", "主界面")))
                 if (tab)
                     DrawMain();
-            using (var tab = ImRaii.TabItem("Debug"))
+            using (var tab = ImRaii.TabItem(Loc.Tr("Debug", "调试")))
                 if (tab)
                     _debug.Draw();
         }
@@ -52,7 +52,7 @@ unsafe class PastureWindow : UIAttachedWindow
 
     private void DrawMain()
     {
-        if (UICombo.Enum("Auto Collect", ref _config.Collect))
+        if (UICombo.Enum(Loc.Tr("Auto Collect", "自动收取"), ref _config.Collect))
             _config.NotifyModified();
         ImGui.Separator();
 
@@ -60,7 +60,7 @@ unsafe class PastureWindow : UIAttachedWindow
         var agent = AgentMJIAnimalManagement.Instance();
         if (mji == null || mji->PastureHandler == null || mji->IslandState.Pasture.EligibleForCare == 0 || agent == null)
         {
-            ImGui.TextUnformatted("Mammets not available!");
+            ImGui.TextUnformatted(Loc.Tr("Mammets not available!", "暂无可用的工匠人偶！"));
             return;
         }
 
@@ -75,20 +75,22 @@ unsafe class PastureWindow : UIAttachedWindow
             // if there's uncollected stuff - propose to collect everything
             using (ImRaii.Disabled(res == CollectResult.EverythingCapped))
             {
-                if (ImGui.Button("Collect all"))
+                if (ImGui.Button(Loc.Tr("Collect all", "全部收取")))
                     CollectAll();
                 if (res != CollectResult.CanCollectSafely)
                 {
                     ImGui.SameLine();
                     using (ImRaii.PushColor(ImGuiCol.Text, 0xff0000ff))
-                        ImGuiEx.TextV(res == CollectResult.EverythingCapped ? "Inventory is full!" : "Warning: some resources will overcap!");
+                        ImGuiEx.TextV(res == CollectResult.EverythingCapped
+                            ? Loc.Tr("Inventory is full!", "背包已满！")
+                            : Loc.Tr("Warning: some resources will overcap!", "警告：部分资源会溢出！"));
                 }
             }
         }
         else
         {
             // TODO: think about any other global operations?
-            ImGuiEx.TextV("Nothing to collect!");
+            ImGuiEx.TextV(Loc.Tr("Nothing to collect!", "没有可收取的产物！"));
         }
     }
 
