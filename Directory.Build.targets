@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <DALAMUD_HOME Condition="'$(DALAMUD_HOME)' == '' and Exists('$(AppData)\XIVLauncherCN\addon\Hooks\dev\Dalamud.dll')">$(AppData)\XIVLauncherCN\addon\Hooks\dev</DALAMUD_HOME>
+    <DALAMUD_HOME Condition="'$(DALAMUD_HOME)' == '' and Exists('$(AppData)\XIVLauncher\addon\Hooks\dev\Dalamud.dll')">$(AppData)\XIVLauncher\addon\Hooks\dev</DALAMUD_HOME>
+    <DalamudLibPath Condition="'$(OS)' == 'Windows_NT' and '$(DALAMUD_HOME)' != ''">$(DALAMUD_HOME)\</DalamudLibPath>
+    <AssemblySearchPaths Condition="'$(OS)' == 'Windows_NT' and '$(DalamudLibPath)' != ''">$(AssemblySearchPaths);$(DalamudLibPath)</AssemblySearchPaths>
+  </PropertyGroup>
+</Project>

@@ -1,15 +1,15 @@
-﻿using System.ComponentModel;
+using visland.Helpers;
 
 namespace visland;
 
 public enum CollectStrategy
 {
-    [Description("Manual")]
+    [LocalizedDescription("Manual", "手动")]
     Manual,
 
-    [Description("Automatic, if not overcapping")]
+    [LocalizedDescription("Automatic, if not overcapping", "自动，不允许溢出")]
     NoOvercap,
 
-    [Description("Automatic, allow overcap")]
+    [LocalizedDescription("Automatic, allow overcap", "自动，允许溢出")]
     FullAuto,
 }

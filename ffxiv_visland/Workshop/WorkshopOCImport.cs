@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text.RegularExpressions;
+using visland.Helpers;
 
 namespace visland.Workshop;
 
@@ -47,11 +48,15 @@ public unsafe class WorkshopOCImport
     {
         using var globalDisable = ImRaii.Disabled(_pendingActions.Count > 0); // disallow any manipulations while delayed actions are in progress
 
-        if (ImGui.Button("Import Recommendations From Clipboard"))
+        if (ImGui.Button(Loc.Tr("Import Recommendations From Clipboard", "从剪贴板导入推荐排班")))
             ImportRecsFromClipboard(false);
-        ImGuiComponents.HelpMarker("This is for importing schedules from the Overseas Casuals' Discord from your clipboard.\n" +
-                        "This importer detects the presence of an item's name (not including \"Isleworks\" et al) on each line.\n" +
-                        "You can copy an entire workshop's schedule from the discord, junk included.");
+        ImGuiComponents.HelpMarker(Loc.Tr(
+            "This is for importing schedules from the Overseas Casuals' Discord from your clipboard.\n" +
+            "This importer detects the presence of an item's name (not including \"Isleworks\" et al) on each line.\n" +
+            "You can copy an entire workshop's schedule from the discord, junk included.",
+            "用于从剪贴板导入 Overseas Casuals Discord 里的工坊排班。\n" +
+            "导入器会在每一行中识别物品名称，不包含 \"Isleworks\" 等前缀。\n" +
+            "你可以直接复制 Discord 里的整段排班内容，夹杂的无关文字也没关系。"));
 
         if (Recommendations.Empty)
             return;
@@ -60,59 +65,63 @@ public unsafe class WorkshopOCImport
 
         if (!_config.UseFavorSolver)
         {
-            ImGui.TextUnformatted("Favours");
-            ImGuiComponents.HelpMarker("Click the \"This Week's Favors\" or \"Next Week's Favors\" button to generate a bot command for the OC discord for your favors.\n" +
-                    "Then click the #bot-spam button to open discord to the channel, paste in the command and copy its output.\n" +
-                    "Finally, click the \"Override 4th workshop\" button to replace the regular recommendations with favor recommendations.");
+            ImGui.TextUnformatted(Loc.Tr("Favours", "特供"));
+            ImGuiComponents.HelpMarker(Loc.Tr(
+                "Click the \"This Week's Favors\" or \"Next Week's Favors\" button to generate a bot command for the OC discord for your favors.\n" +
+                "Then click the #bot-spam button to open discord to the channel, paste in the command and copy its output.\n" +
+                "Finally, click the \"Override 4th workshop\" button to replace the regular recommendations with favor recommendations.",
+                "点击“本周特供”或“下周特供”来生成发给 OC Discord 机器人的特供命令。\n" +
+                "然后点击 #bot-spam 按钮打开对应频道，贴入命令并复制机器人的输出结果。\n" +
+                "最后点击“用特供排班覆盖第 4 工坊”按钮，用特供排班替换常规推荐。"));
 
-            if (ImGuiComponents.IconButtonWithText(Dalamud.Interface.FontAwesomeIcon.Clipboard, "This Week's Favors"))
+            if (ImGuiComponents.IconButtonWithText(Dalamud.Interface.FontAwesomeIcon.Clipboard, Loc.Tr("This Week's Favors", "本周特供")))
                 ImGui.SetClipboardText(CreateFavorRequestCommand(false));
             ImGui.SameLine();
-            if (ImGuiComponents.IconButtonWithText(Dalamud.Interface.FontAwesomeIcon.Clipboard, "Next Week's Favors"))
+            if (ImGuiComponents.IconButtonWithText(Dalamud.Interface.FontAwesomeIcon.Clipboard, Loc.Tr("Next Week's Favors", "下周特供")))
                 ImGui.SetClipboardText(CreateFavorRequestCommand(true));
 
-            if (ImGui.Button("Overseas Casuals > #bot-spam"))
+            if (ImGui.Button(Loc.Tr("Overseas Casuals > #bot-spam", "Overseas Casuals > #bot-spam")))
                 Util.OpenLink("discord://discord.com/channels/1034534280757522442/1034985297391407126");
             if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
                 Util.OpenLink("https://discord.com/channels/1034534280757522442/1034985297391407126");
-            ImGuiComponents.HelpMarker("\uE051: Discord app\n\uE052: Discord in browser");
+            ImGuiComponents.HelpMarker(Loc.Tr("\uE051: Discord app\n\uE052: Discord in browser", "\uE051: Discord 客户端\n\uE052: 浏览器中的 Discord"));
 
-            if (ImGui.Button("Override 4th workshop with favor schedules from clipboard"))
+            if (ImGui.Button(Loc.Tr("Override 4th workshop with favor schedules from clipboard", "用剪贴板中的特供排班覆盖第 4 工坊")))
                 OverrideSideRecsLastWorkshopClipboard();
-            if (ImGui.Button("Override closest workshops with favor schedules from clipboard"))
+            if (ImGui.Button(Loc.Tr("Override closest workshops with favor schedules from clipboard", "用剪贴板中的特供排班尽快覆盖可用工坊")))
                 OverrideSideRecsAsapClipboard();
         }
         else
         {
-            ImGuiEx.TextV("Override 4th workshop with favors:");
+            ImGuiEx.TextV(Loc.Tr("Override 4th workshop with favors:", "用特供覆盖第 4 工坊："));
             ImGui.SameLine();
-            if (ImGui.Button($"This Week##4th"))
+            if (ImGui.Button($"{Loc.Tr("This Week", "本周")}##4th"))
                 OverrideSideRecsLastWorkshopSolver(false);
             ImGui.SameLine();
-            if (ImGui.Button($"Next Week##4th"))
+            if (ImGui.Button($"{Loc.Tr("Next Week", "下周")}##4th"))
                 OverrideSideRecsLastWorkshopSolver(true);
 
-            ImGuiEx.TextV("Override closest workshops with favors:");
+            ImGuiEx.TextV(Loc.Tr("Override closest workshops with favors:", "用特供尽快覆盖可用工坊："));
             ImGui.SameLine();
 
-            if (ImGui.Button($"This Week##asap"))
+            if (ImGui.Button($"{Loc.Tr("This Week", "本周")}##asap"))
                 OverrideSideRecsAsapSolver(false);
             ImGui.SameLine();
-            if (ImGui.Button($"Next Week##asap"))
+            if (ImGui.Button($"{Loc.Tr("Next Week", "下周")}##asap"))
                 OverrideSideRecsAsapSolver(true);
         }
 
         ImGui.Separator();
 
-        ImGuiEx.TextV("Set Schedule:");
+        ImGuiEx.TextV(Loc.Tr("Set Schedule:", "应用排班："));
         ImGui.SameLine();
-        if (ImGui.Button("This Week"))
+        if (ImGui.Button(Loc.Tr("This Week", "本周")))
             ApplyRecommendations(false);
         ImGui.SameLine();
-        if (ImGui.Button("Next Week"))
+        if (ImGui.Button(Loc.Tr("Next Week", "下周")))
             ApplyRecommendations(true);
         ImGui.SameLine();
-        ImGui.Checkbox("Ignore 4th Workshop", ref IgnoreFourthWorkshop);
+        ImGui.Checkbox(Loc.Tr("Ignore 4th Workshop", "忽略第 4 工坊"), ref IgnoreFourthWorkshop);
         ImGui.Separator();
 
         DrawCycleRecommendations();
@@ -126,7 +135,7 @@ public unsafe class WorkshopOCImport
         }
         catch (Exception ex)
         {
-            ReportError($"Error: {ex.Message}", silent);
+            ReportError(Loc.Format("Error: {0}", "错误：{0}", ex.Message), silent);
         }
     }
 
@@ -138,9 +147,9 @@ public unsafe class WorkshopOCImport
         using var scrollSection = ImRaii.Child("ScrollableSection");
         foreach (var (c, r) in Recommendations.Enumerate())
         {
-            ImGuiEx.TextV($"Cycle {c}:");
+            ImGuiEx.TextV(Loc.Format("Cycle {0}:", "周期 {0}：", c));
             ImGui.SameLine();
-            if (ImGui.Button($"Set on Active Cycle##{c}"))
+            if (ImGui.Button($"{Loc.Tr("Set on Active Cycle", "设置到当前周期")}##{c}"))
                 ApplyRecommendationToCurrentCycle(r);
 
             using var outerTable = ImRaii.Table($"table_{c}", r.Workshops.Count, tableFlags);
@@ -149,20 +158,20 @@ public unsafe class WorkshopOCImport
                 var workshopLimit = r.Workshops.Count - (IgnoreFourthWorkshop && r.Workshops.Count > 1 ? 1 : 0);
                 if (r.Workshops.Count <= 1)
                 {
-                    ImGui.TableSetupColumn(IgnoreFourthWorkshop ? $"Workshops 1-{maxWorkshops - 1}" : "All Workshops");
+                    ImGui.TableSetupColumn(IgnoreFourthWorkshop ? Loc.Format("Workshops 1-{0}", "工坊 1-{0}", maxWorkshops - 1) : Loc.Tr("All Workshops", "全部工坊"));
                 }
                 else if (r.Workshops.Count < maxWorkshops)
                 {
                     var numDuplicates = 1 + maxWorkshops - r.Workshops.Count;
-                    ImGui.TableSetupColumn($"Workshops 1-{numDuplicates}");
+                    ImGui.TableSetupColumn(Loc.Format("Workshops 1-{0}", "工坊 1-{0}", numDuplicates));
                     for (var i = 1; i < workshopLimit; ++i)
-                        ImGui.TableSetupColumn($"Workshop {i + numDuplicates}");
+                        ImGui.TableSetupColumn(Loc.Format("Workshop {0}", "工坊 {0}", i + numDuplicates));
                 }
                 else
                 {
                     // favors
                     for (var i = 0; i < workshopLimit; ++i)
-                        ImGui.TableSetupColumn($"Workshop {i + 1}");
+                        ImGui.TableSetupColumn(Loc.Format("Workshop {0}", "工坊 {0}", i + 1));
                 }
                 ImGui.TableHeadersRow();
 
@@ -198,7 +207,7 @@ public unsafe class WorkshopOCImport
         var state = MJIManager.Instance()->FavorState;
         if (state == null || state->UpdateState != 2)
         {
-            ReportError($"Favor data not available: {state->UpdateState}");
+            ReportError(Loc.Format("Favor data not available: {0}", "特供数据不可用：{0}", state->UpdateState));
             return "";
         }
 
@@ -222,12 +231,12 @@ public unsafe class WorkshopOCImport
         {
             var overrideRecs = ParseRecOverrides(ImGui.GetClipboardText());
             if (overrideRecs.Count > Recommendations.Schedules.Count)
-                throw new Exception($"Override list is longer than base schedule: {overrideRecs.Count} > {Recommendations.Schedules.Count}");
+                throw new Exception(Loc.Format("Override list is longer than base schedule: {0} > {1}", "覆盖列表比基础排班更长：{0} > {1}", overrideRecs.Count, Recommendations.Schedules.Count));
             OverrideSideRecsLastWorkshop(overrideRecs);
         }
         catch (Exception ex)
         {
-            ReportError($"Error: {ex.Message}");
+            ReportError(Loc.Format("Error: {0}", "错误：{0}", ex.Message));
         }
     }
 
@@ -252,7 +261,7 @@ public unsafe class WorkshopOCImport
             r.Workshops.Add(o);
         }
         if (overrides.Count > Recommendations.Schedules.Count)
-            Service.ChatGui.Print("Warning: couldn't fit all overrides into base schedule", "visland");
+            Service.ChatGui.Print(Loc.Tr("Warning: couldn't fit all overrides into base schedule", "警告：无法将所有覆盖排班完整塞入基础排班"), "visland");
     }
 
     private void OverrideSideRecsAsapClipboard()
@@ -261,12 +270,12 @@ public unsafe class WorkshopOCImport
         {
             var overrideRecs = ParseRecOverrides(ImGui.GetClipboardText());
             if (overrideRecs.Count > Recommendations.Schedules.Count * 4)
-                throw new Exception($"Override list is longer than base schedule: {overrideRecs.Count} > 4 * {Recommendations.Schedules.Count}");
+                throw new Exception(Loc.Format("Override list is longer than base schedule: {0} > 4 * {1}", "覆盖列表比基础排班更长：{0} > 4 * {1}", overrideRecs.Count, Recommendations.Schedules.Count));
             OverrideSideRecsAsap(overrideRecs);
         }
         catch (Exception ex)
         {
-            ReportError($"Error: {ex.Message}");
+            ReportError(Loc.Format("Error: {0}", "错误：{0}", ex.Message));
         }
     }
 
@@ -299,7 +308,7 @@ public unsafe class WorkshopOCImport
             nextOverride += batchSize;
         }
         if (nextOverride < overrides.Count)
-            Service.ChatGui.Print("Warning: couldn't fit all overrides into base schedule", "visland");
+            Service.ChatGui.Print(Loc.Tr("Warning: couldn't fit all overrides into base schedule", "警告：无法将所有覆盖排班完整塞入基础排班"), "visland");
     }
 
     private WorkshopSolver.Recs ParseRecs(string str)
@@ -323,7 +332,7 @@ public unsafe class WorkshopOCImport
             {
                 // just a sanity check...
                 if (!curRec.Empty)
-                    throw new Exception("Unexpected start of 1st workshop recs");
+                    throw new Exception(Loc.Tr("Unexpected start of 1st workshop recs", "第一个工坊推荐排班的起始位置异常"));
             }
             else if (l == "4th Workshop")
             {
@@ -500,11 +509,11 @@ public unsafe class WorkshopOCImport
         {
             var agentData = AgentMJICraftSchedule.Instance()->Data;
             if (Recommendations.Schedules.Count > 5)
-                throw new Exception($"Too many days in recs: {Recommendations.Schedules.Count}");
+                throw new Exception(Loc.Format("Too many days in recs: {0}", "推荐排班天数过多：{0}", Recommendations.Schedules.Count));
 
             var forbiddenCycles = nextWeek ? 0 : (1u << (agentData->CycleInProgress + 1)) - 1;
             if ((Recommendations.CyclesMask & forbiddenCycles) != 0)
-                throw new Exception("Some of the cycles in schedule are already in progress or are done");
+                throw new Exception(Loc.Tr("Some of the cycles in schedule are already in progress or are done", "排班中的部分周期已经开始或已经结束"));
 
             var currentRestCycles = nextWeek ? agentData->RestCycles >> 7 : agentData->RestCycles & 0x7F;
             if ((currentRestCycles & Recommendations.CyclesMask) != 0)
@@ -512,14 +521,14 @@ public unsafe class WorkshopOCImport
                 // we need to change rest cycles - set to C1 and last unused
                 var freeCycles = ~Recommendations.CyclesMask & 0x7F;
                 if ((freeCycles & 1) == 0)
-                    throw new Exception($"Sorry, we assume C1 is always rest - set rest days manually to match your schedule");
+                    throw new Exception(Loc.Tr("Sorry, we assume C1 is always rest - set rest days manually to match your schedule", "当前逻辑默认 C1 必须是休息日，请手动调整休息日后再应用该排班"));
                 var rest = (1u << (31 - BitOperations.LeadingZeroCount(freeCycles))) | 1;
                 if (BitOperations.PopCount(rest) != 2)
-                    throw new Exception($"Something went wrong, failed to determine rest days");
+                    throw new Exception(Loc.Tr("Something went wrong, failed to determine rest days", "发生异常，无法确定休息日"));
 
                 var changedRest = rest ^ currentRestCycles;
                 if ((changedRest & forbiddenCycles) != 0)
-                    throw new Exception("Can't apply this schedule: it would require changing rest days for cycles that are in progress or already done");
+                    throw new Exception(Loc.Tr("Can't apply this schedule: it would require changing rest days for cycles that are in progress or already done", "无法应用该排班：这会修改已经开始或已经结束周期的休息日"));
 
                 var newRest = nextWeek ? (rest << 7) | (agentData->RestCycles & 0x7F) : (agentData->RestCycles & 0x3F80) | rest;
                 WorkshopUtils.SetRestCycles(newRest);
@@ -532,7 +541,7 @@ public unsafe class WorkshopOCImport
         }
         catch (Exception ex)
         {
-            ReportError($"Error: {ex.Message}");
+            ReportError(Loc.Format("Error: {0}", "错误：{0}", ex.Message));
         }
     }
 

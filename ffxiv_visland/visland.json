@@ -1,8 +1,8 @@
 {
   "Author": "veyn, croizat",
   "Name": "Visland",
-  "Punchline": "Automate island sanctuary activities",
-  "Description": "Automate gathering, workshop assignments, etc.",
+  "Punchline": "无人岛自动化工具",
+  "Description": "自动处理采集、工坊排班等无人岛事务。",
   "InternalName": "visland",
   "ApplicableVersion": "any",
   "IconUrl": "https://raw.githubusercontent.com/awgil/ffxiv_visland/d3338f6ddbf54365e60fbdf8e85ea8f5abdb745f/icon.png"

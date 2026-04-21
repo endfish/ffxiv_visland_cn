@@ -30,16 +30,27 @@ public sealed class Plugin : IDalamudPlugin
 {
     public static string Name => "visland";
     public static string Repo => "https://puni.sh/api/repository/veyn";
-    internal static string HelpMessage => "Opens the Gathering Menu\n" +
-        $"/{Name} moveto <X> <Y> <Z> → move to raw coordinates\n" +
-        $"/{Name} movedir <X> <Y> <Z> → move this many units over (relative to player facing)\n" +
-        $"/{Name} stop → stop current route\n" +
-        $"/{Name} pause → pause current route\n" +
-        $"/{Name} resume → resume current route\n" +
-        $"/{Name} exec <name> → run route by name continuously\n" +
-        $"/{Name} execonce <name> → run route by name once\n" +
-        $"/{Name} exectemp <base64 route> → run unsaved route continuously\n" +
-        $"/{Name} exectemponce <base64 route> → run unsaved route once";
+    internal static string HelpMessage => Loc.Tr(
+        "Opens the Gathering Menu\n" +
+        $"/{Name} moveto <X> <Y> <Z> -> move to raw coordinates\n" +
+        $"/{Name} movedir <X> <Y> <Z> -> move this many units over (relative to player facing)\n" +
+        $"/{Name} stop -> stop current route\n" +
+        $"/{Name} pause -> pause current route\n" +
+        $"/{Name} resume -> resume current route\n" +
+        $"/{Name} exec <name> -> run route by name continuously\n" +
+        $"/{Name} execonce <name> -> run route by name once\n" +
+        $"/{Name} exectemp <base64 route> -> run unsaved route continuously\n" +
+        $"/{Name} exectemponce <base64 route> -> run unsaved route once",
+        "打开采集界面\n" +
+        $"/{Name} moveto <X> <Y> <Z> -> 移动到绝对坐标\n" +
+        $"/{Name} movedir <X> <Y> <Z> -> 按当前朝向相对移动指定距离\n" +
+        $"/{Name} stop -> 停止当前路线\n" +
+        $"/{Name} pause -> 暂停当前路线\n" +
+        $"/{Name} resume -> 恢复当前路线\n" +
+        $"/{Name} exec <name> -> 循环执行指定名称的路线\n" +
+        $"/{Name} execonce <name> -> 执行指定名称的路线一次\n" +
+        $"/{Name} exectemp <base64 route> -> 循环执行未保存的临时路线\n" +
+        $"/{Name} exectemponce <base64 route> -> 执行未保存的临时路线一次");
 
     internal static Plugin P = null!;
     internal TaskManager TaskManager;

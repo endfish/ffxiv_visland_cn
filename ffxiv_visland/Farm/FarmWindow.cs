@@ -13,7 +13,7 @@ public unsafe class FarmWindow : UIAttachedWindow
     private FarmConfig _config;
     private FarmDebug _debug = new();
 
-    public FarmWindow() : base("Farm Automation", "MJIFarmManagement", new(400, 600))
+    public FarmWindow() : base(Loc.Tr("Farm Automation", "农场自动化"), "MJIFarmManagement", new(400, 600))
     {
         _config = Service.Config.Get<FarmConfig>();
     }
@@ -35,10 +35,10 @@ public unsafe class FarmWindow : UIAttachedWindow
         using var tabs = ImRaii.TabBar("Tabs");
         if (tabs)
         {
-            using (var tab = ImRaii.TabItem("Main"))
+            using (var tab = ImRaii.TabItem(Loc.Tr("Main", "主界面")))
                 if (tab)
                     DrawMain();
-            using (var tab = ImRaii.TabItem("Debug"))
+            using (var tab = ImRaii.TabItem(Loc.Tr("Debug", "调试")))
                 if (tab)
                     _debug.Draw();
         }
@@ -46,7 +46,7 @@ public unsafe class FarmWindow : UIAttachedWindow
 
     private void DrawMain()
     {
-        if (UICombo.Enum("Auto Collect", ref _config.Collect))
+        if (UICombo.Enum(Loc.Tr("Auto Collect", "自动收取"), ref _config.Collect))
             _config.NotifyModified();
         ImGui.Separator();
 
@@ -54,7 +54,7 @@ public unsafe class FarmWindow : UIAttachedWindow
         var agent = AgentMJIFarmManagement.Instance();
         if (mji == null || mji->FarmState == null || mji->IslandState.Farm.EligibleForCare == 0 || agent == null)
         {
-            ImGui.TextUnformatted("Mammets not available!");
+            ImGui.TextUnformatted(Loc.Tr("Mammets not available!", "暂无可用的工匠人偶！"));
             return;
         }
 
@@ -71,13 +71,15 @@ public unsafe class FarmWindow : UIAttachedWindow
             // if there's uncollected stuff - propose to collect everything
             using (ImRaii.Disabled(res == CollectResult.EverythingCapped))
             {
-                if (ImGui.Button("Collect all"))
+                if (ImGui.Button(Loc.Tr("Collect all", "全部收取")))
                     CollectAll();
                 if (res != CollectResult.CanCollectSafely)
                 {
                     ImGui.SameLine();
                     using (ImRaii.PushColor(ImGuiCol.Text, 0xff0000ff))
-                        ImGuiEx.TextV(res == CollectResult.EverythingCapped ? "Inventory is full!" : "Warning: some resources will overcap!");
+                        ImGuiEx.TextV(res == CollectResult.EverythingCapped
+                            ? Loc.Tr("Inventory is full!", "背包已满！")
+                            : Loc.Tr("Warning: some resources will overcap!", "警告：部分资源会溢出！"));
                 }
             }
         }
@@ -93,11 +95,11 @@ public unsafe class FarmWindow : UIAttachedWindow
             }
 
             using (ImRaii.Disabled(!canDismiss))
-                if (ImGui.Button("Dismiss all"))
+                if (ImGui.Button(Loc.Tr("Dismiss all", "全部解雇")))
                     DismissAll();
             ImGui.SameLine();
             using (ImRaii.Disabled(!canEntrust))
-                if (ImGui.Button("Entrust all"))
+                if (ImGui.Button(Loc.Tr("Entrust all", "全部委托")))
                     EntrustAll();
         }
     }
@@ -107,8 +109,8 @@ public unsafe class FarmWindow : UIAttachedWindow
         using var table = ImRaii.Table("table", 2);
         if (table)
         {
-            ImGui.TableSetupColumn("Slot");
-            ImGui.TableSetupColumn("Operations");
+            ImGui.TableSetupColumn(Loc.Tr("Slot", "地块"));
+            ImGui.TableSetupColumn(Loc.Tr("Operations", "操作"));
             ImGui.TableHeadersRow();
 
             var agent = AgentMJIFarmManagement.Instance();
@@ -130,23 +132,23 @@ public unsafe class FarmWindow : UIAttachedWindow
                 {
                     using (ImRaii.Disabled(full))
                     {
-                        if (ImGui.Button($"Collect##{i}"))
+                        if (ImGui.Button($"{Loc.Tr("Collect", "收取")}##{i}"))
                             CollectOne(i, false);
                         ImGui.SameLine();
-                        if (ImGui.Button($"Collect & dismiss##{i}"))
+                        if (ImGui.Button($"{Loc.Tr("Collect & dismiss", "收取并解雇")}##{i}"))
                             CollectOne(i, true);
                     }
                 }
                 else if (slot.UnderCare)
                 {
-                    if (ImGui.Button($"Dismiss##{i}"))
+                    if (ImGui.Button($"{Loc.Tr("Dismiss", "解雇")}##{i}"))
                         DismissOne(i);
                 }
                 else if (slot.SeedItemId != 0)
                 {
                     if (slot.WasUnderCare || Utils.NumCowries() >= 5)
                     {
-                        if (ImGui.Button($"Entrust##{i}"))
+                        if (ImGui.Button($"{Loc.Tr("Entrust", "委托")}##{i}"))
                             EntrustOne(i, slot.SeedItemId);
                     }
                     // else: not enough cowries

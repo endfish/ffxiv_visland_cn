@@ -3,6 +3,7 @@ using Dalamud.Bindings.ImGui;
 using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
+using visland.Helpers;
 
 namespace visland.Workshop;
 
@@ -13,7 +14,7 @@ public class WorkshopManual
 
     public void Draw()
     {
-        ImGui.InputText("Filter", ref _filter, 256);
+        ImGui.InputText(Loc.Tr("Filter", "筛选"), ref _filter, 256);
         var sheetCraft = Service.LuminaGameData.GetExcelSheet<MJICraftworksObject>()!;
         foreach (var row in sheetCraft)
         {
@@ -24,7 +25,7 @@ public class WorkshopManual
         }
 
         ImGui.Separator();
-        ImGui.TextUnformatted("Recent items:");
+        ImGui.TextUnformatted(Loc.Tr("Recent items:", "最近使用："));
         foreach (var i in _recents.ToArray()) // copy, since we might modify it...
         {
             DrawRowCraft(sheetCraft.GetRow(i)!, true);
@@ -78,7 +79,7 @@ public class WorkshopManual
             ++startingCycle;
         if (startingCycle > maxCycle)
         {
-            ReportError($"No free spots in workshop {workshopIndex + 1}");
+            ReportError(Loc.Format("No free spots in workshop {0}", "工坊 {0} 没有空闲档位", workshopIndex + 1));
             return;
         }
 
