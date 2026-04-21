@@ -26,8 +26,9 @@ public unsafe class WorkshopOCImport
 
     private WorkshopConfig _config;
     private ExcelSheet<MJICraftworksObject> _craftSheet;
-    private List<uint> _craftIds = [];
+    private List<string> _displayNames;
     private List<string> _botNames;
+    private List<List<string>> _searchAliases;
     private List<Func<bool>> _pendingActions = [];
     private bool IgnoreFourthWorkshop;
 
@@ -35,7 +36,9 @@ public unsafe class WorkshopOCImport
     {
         _config = Service.Config.Get<WorkshopConfig>();
         _craftSheet = GenericHelpers.GetSheet<MJICraftworksObject>(); // unlocalised sheet can't be fetched in english
+        _displayNames = _craftSheet.Select(r => r.Item.Value.Name.ExtractText()).ToList();
         _botNames = _craftSheet.Select(r => OfficialNameToBotName(GenericHelpers.GetRow<Item>(r.Item.RowId, ClientLanguage.English)!.Value.Name.ExtractText())).ToList();
+        _searchAliases = _craftSheet.Select(BuildSearchAliases).ToList();
     }
 
     public void Update()
@@ -57,6 +60,12 @@ public unsafe class WorkshopOCImport
             "用于从剪贴板导入 Overseas Casuals Discord 里的工坊排班。\n" +
             "导入器会在每一行中识别物品名称，不包含 \"Isleworks\" 等前缀。\n" +
             "你可以直接复制 Discord 里的整段排班内容，夹杂的无关文字也没关系。"));
+        ImGui.TextWrapped(Loc.Tr(
+            "Chinese servers are also supported: you can paste the Tencent Docs format like 'D1: Rest' or 'D2: 3x Pumpkin Pudding, ...'.",
+            "国服也支持：可以直接粘贴腾讯文档里的格式，例如“D1:休息”或“D2:3×新薯沙拉、五海杂烩汤、无人面包、五海杂烩汤”。"));
+        ImGui.TextWrapped(Loc.Tr(
+            "If the sheet uses '3x ...' and you want to keep workshop 4 for favors, enable 'Ignore 4th Workshop' before applying.",
+            "如果排班表写的是“3×...”，并且你想把第 4 工坊留给特供，请在应用前勾选“忽略第 4 工坊”。"));
 
         if (Recommendations.Empty)
             return;
@@ -194,7 +203,7 @@ public unsafe class WorkshopOCImport
                             ImGui.Image(Service.TextureProvider.GetFromGameIcon(new GameIconLookup(craftworkItemIcon)).GetWrapOrEmpty().Handle, iconSizeVec, Vector2.Zero, Vector2.One);
 
                             ImGui.TableNextColumn();
-                            ImGui.TextUnformatted(_botNames[(int)rec.CraftObjectId]);
+                            ImGui.TextUnformatted(_displayNames[(int)rec.CraftObjectId]);
                         }
                     }
                 }
@@ -313,6 +322,14 @@ public unsafe class WorkshopOCImport
 
     private WorkshopSolver.Recs ParseRecs(string str)
     {
+        if (LooksLikeChineseDocFormat(str))
+            return ParseChineseDocRecs(str);
+
+        return ParseOcRecs(str);
+    }
+
+    private WorkshopSolver.Recs ParseOcRecs(string str)
+    {
         var result = new WorkshopSolver.Recs();
 
         var curRec = new WorkshopSolver.DayRec();
@@ -361,6 +378,57 @@ public unsafe class WorkshopOCImport
         return result;
     }
 
+    private WorkshopSolver.Recs ParseChineseDocRecs(string str)
+    {
+        var result = new WorkshopSolver.Recs();
+        var anyCycle = false;
+
+        foreach (var rawLine in str.Split('\n', '\r'))
+        {
+            var line = rawLine.Trim();
+            if (line.Length == 0)
+                continue;
+
+            if (!TryParseChineseCycleLine(line, out var cycle, out var payload))
+            {
+                Service.Log.Verbose($"Failed to parse CN line {line}");
+                continue;
+            }
+
+            anyCycle = true;
+            if (IsChineseRestDay(payload))
+            {
+                result.Add(cycle, new());
+                continue;
+            }
+
+            var dayRec = new WorkshopSolver.DayRec();
+            var workshopRec = new WorkshopSolver.WorkshopRec();
+            dayRec.Workshops.Add(workshopRec);
+
+            var nextSlot = 0;
+            foreach (var token in SplitChineseScheduleItems(payload))
+            {
+                var item = TryParseItem(token) ?? throw new Exception(Loc.Format("Could not match item: {0}", "无法识别道具：{0}", token));
+                if (nextSlot + item.CraftingTime > 24)
+                    throw new Exception(Loc.Format("Schedule for cycle {0} exceeds 24 hours", "周期 {0} 的排班超过了 24 小时", cycle));
+
+                workshopRec.Add(nextSlot, item.RowId);
+                nextSlot += item.CraftingTime;
+            }
+
+            if (workshopRec.Slots.Count == 0)
+                throw new Exception(Loc.Format("No craft entries found for cycle {0}", "周期 {0} 未找到任何工坊条目", cycle));
+
+            result.Add(cycle, dayRec);
+        }
+
+        if (!anyCycle)
+            throw new Exception(Loc.Tr("No valid cycle lines were found in the clipboard", "剪贴板里没有识别到有效的周期行"));
+
+        return result;
+    }
+
     private static bool TryParseCycleStart(string str, out int cycle)
     {
         // OC has two formats:
@@ -379,28 +447,32 @@ public unsafe class WorkshopOCImport
 
     private MJICraftworksObject? TryParseItem(string line)
     {
-        var matchingRows = _botNames.Select((n, i) => (n, i)).Where(t => !string.IsNullOrEmpty(t.n) && IsMatch(line, t.n)).ToList();
+        var matchingRows = _searchAliases
+            .Select((aliases, i) => (aliases, i))
+            .Where(t => t.aliases.Any(a => !string.IsNullOrEmpty(a) && IsMatch(line, a)))
+            .ToList();
         if (matchingRows.Count > 1)
         {
-            matchingRows = [.. matchingRows.OrderByDescending(t => MatchingScore(t.n, line))];
-            Service.Log.Info($"Row '{line}' matches {matchingRows.Count} items: {string.Join(", ", matchingRows.Select(r => r.n))}\n" +
+            matchingRows = [.. matchingRows.OrderByDescending(t => MatchingScore(t.aliases, line))];
+            Service.Log.Info($"Row '{line}' matches {matchingRows.Count} items: {string.Join(", ", matchingRows.Select(r => _displayNames[r.i]))}\n" +
                 "First one is most likely the correct match. Please report if this is wrong.");
         }
         return matchingRows.Count > 0 ? _craftSheet.GetRow((uint)matchingRows.First().i) : null;
     }
 
 
-    private static bool IsMatch(string x, string y) => Regex.IsMatch(x, $@"\b{Regex.Escape(y)}\b");
-    private static object MatchingScore(string item, string line)
+    private static bool IsMatch(string line, string alias)
     {
-        var score = 0;
+        if (ContainsNonAscii(alias))
+            return line.Contains(alias, StringComparison.OrdinalIgnoreCase);
 
-        // primitive matching based on how long the string matches. Enough for now but could need expanding later
-        if (line.Contains(item))
-            score += item.Length;
-
-        return score;
+        return Regex.IsMatch(line, $@"\b{Regex.Escape(alias)}\b");
     }
+
+    private static int MatchingScore(IEnumerable<string> aliases, string line)
+        => aliases.Where(a => line.Contains(a, StringComparison.OrdinalIgnoreCase)).Select(a => a.Length).DefaultIfEmpty(0).Max();
+
+    private static bool ContainsNonAscii(string text) => text.Any(c => c > 127);
 
     private List<WorkshopSolver.WorkshopRec> ParseRecOverrides(string str)
     {
@@ -474,6 +546,75 @@ public unsafe class WorkshopOCImport
         if (name == "Mammet of the Cycle Award")
             return "Mammet Award";
         return name;
+    }
+
+    private List<string> BuildSearchAliases(MJICraftworksObject row)
+    {
+        var aliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var localizedName = row.Item.Value.Name.ExtractText();
+
+        AddAliasVariants(aliases, localizedName);
+        AddAliasVariants(aliases, OfficialNameToBotName(localizedName));
+        AddAliasVariants(aliases, _botNames[(int)row.RowId]);
+
+        return aliases.OrderByDescending(a => a.Length).ToList();
+    }
+
+    private static void AddAliasVariants(HashSet<string> aliases, string name)
+    {
+        foreach (var alias in ExpandAliases(name))
+        {
+            var trimmed = alias.Trim();
+            if (trimmed.Length > 0)
+                aliases.Add(trimmed);
+        }
+    }
+
+    private static IEnumerable<string> ExpandAliases(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            yield break;
+
+        yield return name;
+
+        foreach (var prefix in new[] { "Isleworks ", "Islefish ", "Island ", "开拓工房", "海岛", "无人岛" })
+        {
+            if (name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                yield return name[prefix.Length..];
+        }
+
+        if (name.StartsWith("无人岛", StringComparison.Ordinal))
+            yield return $"无人{name["无人岛".Length..]}";
+    }
+
+    private static bool LooksLikeChineseDocFormat(string text)
+        => text.Split('\n', '\r').Any(line => TryParseChineseCycleLine(line.Trim(), out _, out _));
+
+    private static bool TryParseChineseCycleLine(string line, out int cycle, out string payload)
+    {
+        var match = Regex.Match(line, @"^[Dd](?<cycle>[1-7])\s*[:：]\s*(?<payload>.+)$");
+        if (match.Success)
+        {
+            cycle = int.Parse(match.Groups["cycle"].Value);
+            payload = match.Groups["payload"].Value.Trim();
+            return true;
+        }
+
+        cycle = 0;
+        payload = string.Empty;
+        return false;
+    }
+
+    private static bool IsChineseRestDay(string payload)
+        => payload is "休息" or "休息日";
+
+    private static IEnumerable<string> SplitChineseScheduleItems(string payload)
+    {
+        payload = Regex.Replace(payload.Trim(), @"^\d+\s*[xX×＊*]\s*", string.Empty);
+        return payload
+            .Split(['、', '，', ',', '；', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(item => item.Trim())
+            .Where(item => item.Length > 0);
     }
 
     private unsafe void EnsureDemandFavorsAvailable()
