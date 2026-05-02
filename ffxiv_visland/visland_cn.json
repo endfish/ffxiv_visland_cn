@@ -5,5 +5,5 @@
   "Description": "自动处理采集、工坊排班等无人岛事务。",
   "InternalName": "visland_cn",
   "ApplicableVersion": "any",
-  "IconUrl": "https://raw.githubusercontent.com/awgil/ffxiv_visland/d3338f6ddbf54365e60fbdf8e85ea8f5abdb745f/icon.png"
+  "IconUrl": "https://raw.githubusercontent.com/endfish/ffxiv_visland_cn/master/icon.png"
 }
