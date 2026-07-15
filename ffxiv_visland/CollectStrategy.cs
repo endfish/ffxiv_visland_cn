@@ -2,8 +2,7 @@ using visland.Helpers;
 
 namespace visland;
 
-public enum CollectStrategy
-{
+public enum CollectStrategy {
     [LocalizedDescription("Manual", "手动")]
     Manual,
 

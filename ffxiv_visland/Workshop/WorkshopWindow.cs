@@ -1,24 +1,21 @@
-﻿using Dalamud.Interface.Utility.Raii;
-using visland.Helpers;
-using Dalamud.Bindings.ImGui;
+﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility.Raii;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using visland.Helpers;
 
 namespace visland.Workshop;
 
-unsafe class WorkshopWindow : UIAttachedWindow
-{
-    private WorkshopConfig _config;
-    private WorkshopManual _manual = new();
-    private WorkshopOCImport _oc = new();
-    private WorkshopDebug _debug = new();
+unsafe class WorkshopWindow : UIAttachedWindow {
+    private readonly WorkshopConfig _config;
+    private readonly WorkshopManual _manual = new();
+    private readonly WorkshopOCImport _oc = new();
+    private readonly WorkshopDebug _debug = new();
 
-    public WorkshopWindow() : base(Loc.Tr("Workshop automation", "工坊自动化"), "MJICraftSchedule", new(500, 650))
-    {
+    public WorkshopWindow() : base(Loc.Tr("Workshop automation", "工坊自动化"), "MJICraftSchedule", new(500, 650)) {
         _config = Service.Config.Get<WorkshopConfig>();
     }
 
-    public override void PreOpenCheck()
-    {
+    public override void PreOpenCheck() {
         base.PreOpenCheck();
         var agent = AgentMJICraftSchedule.Instance();
         IsOpen &= agent != null && agent->Data != null;
@@ -26,11 +23,9 @@ unsafe class WorkshopWindow : UIAttachedWindow
         _oc.Update();
     }
 
-    public override void Draw()
-    {
+    public override void Draw() {
         using var tabs = ImRaii.TabBar("Tabs");
-        if (tabs)
-        {
+        if (tabs) {
             using (var tab = ImRaii.TabItem(Loc.Tr("OC import", "OC 导入")))
                 if (tab)
                     _oc.Draw();
@@ -46,20 +41,16 @@ unsafe class WorkshopWindow : UIAttachedWindow
         }
     }
 
-    public override void OnOpen()
-    {
-        if (_config.AutoOpenNextDay)
-        {
+    public override void OnOpen() {
+        if (_config.AutoOpenNextDay) {
             WorkshopUtils.SetCurrentCycle(AgentMJICraftSchedule.Instance()->Data->CycleInProgress + 1);
         }
-        if (_config.AutoImport)
-        {
+        if (_config.AutoImport) {
             _oc.ImportRecsFromClipboard(true);
         }
     }
 
-    private void DrawSettings()
-    {
+    private void DrawSettings() {
         if (ImGui.Checkbox(Loc.Tr("Automatically select next cycle on open", "打开时自动切到下一周期"), ref _config.AutoOpenNextDay))
             _config.NotifyModified();
         if (ImGui.Checkbox(Loc.Tr("Automatically import base recs on open", "打开时自动导入基础推荐排班"), ref _config.AutoImport))

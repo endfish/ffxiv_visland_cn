@@ -1,5 +1,5 @@
-﻿using FFXIVClientStructs.FFXIV.Client.UI.Agent;
-using Dalamud.Bindings.ImGui;
+﻿using Dalamud.Bindings.ImGui;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
@@ -7,17 +7,14 @@ using visland.Helpers;
 
 namespace visland.Workshop;
 
-public class WorkshopManual
-{
-    private List<uint> _recents = [];
+public class WorkshopManual {
+    private readonly List<uint> _recents = [];
     private string _filter = "";
 
-    public void Draw()
-    {
+    public void Draw() {
         ImGui.InputText(Loc.Tr("Filter", "筛选"), ref _filter, 256);
         var sheetCraft = Service.LuminaGameData.GetExcelSheet<MJICraftworksObject>()!;
-        foreach (var row in sheetCraft)
-        {
+        foreach (var row in sheetCraft) {
             var name = row.Item.Value.Name.ToString() ?? "";
             if (name.Length == 0 || !name.Contains(_filter, StringComparison.InvariantCultureIgnoreCase))
                 continue;
@@ -32,8 +29,7 @@ public class WorkshopManual
         }
     }
 
-    private void DrawRowCraft(MJICraftworksObject row, bool fromRecent)
-    {
+    private void DrawRowCraft(MJICraftworksObject row, bool fromRecent) {
         var name = row.Item.Value.Name.ToString() ?? "???";
         ImGui.PushID((int)row.RowId * 2 + (fromRecent ? 1 : 0));
         if (ImGui.Button("+1"))
@@ -58,8 +54,7 @@ public class WorkshopManual
         ImGui.PopID();
     }
 
-    private void AddToSchedule(MJICraftworksObject row, int workshopIndices)
-    {
+    private void AddToSchedule(MJICraftworksObject row, int workshopIndices) {
         for (var i = 0; i < 4; ++i)
             if ((workshopIndices & 1 << i) != 0)
                 AddToScheduleSingle(row, i);
@@ -68,8 +63,7 @@ public class WorkshopManual
         _recents.Insert(0, row.RowId);
     }
 
-    private unsafe void AddToScheduleSingle(MJICraftworksObject row, int workshopIndex)
-    {
+    private unsafe void AddToScheduleSingle(MJICraftworksObject row, int workshopIndex) {
         var agentData = AgentMJICraftSchedule.Instance()->Data;
         var slotMask = (1u << row.CraftingTime) - 1;
         var startingCycle = 0;
@@ -77,8 +71,7 @@ public class WorkshopManual
         var usedMask = agentData->WorkshopSchedules[workshopIndex].UsedTimeSlots;
         while ((usedMask & slotMask << startingCycle) != 0 && startingCycle <= maxCycle)
             ++startingCycle;
-        if (startingCycle > maxCycle)
-        {
+        if (startingCycle > maxCycle) {
             ReportError(Loc.Format("No free spots in workshop {0}", "工坊 {0} 没有空闲档位", workshopIndex + 1));
             return;
         }
@@ -86,8 +79,7 @@ public class WorkshopManual
         WorkshopUtils.ScheduleItemToWorkshop(row.RowId, startingCycle, agentData->CycleDisplayed, workshopIndex);
     }
 
-    private void ReportError(string msg)
-    {
+    private void ReportError(string msg) {
         Service.Log.Error(msg);
         Service.ChatGui.PrintError(msg);
     }

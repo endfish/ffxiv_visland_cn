@@ -1,7 +1,7 @@
-﻿using Dalamud.Interface.Utility.Raii;
+﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility.Raii;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using Dalamud.Bindings.ImGui;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -9,37 +9,30 @@ using visland.Helpers;
 
 namespace visland.Export;
 
-unsafe class ExportWindow : UIAttachedWindow
-{
-    private ExportConfig _config;
-    private ExportDebug _debug = new();
-    private Throttle _exportThrottle = new(); // export seems to close & reopen window?..
+unsafe class ExportWindow : UIAttachedWindow {
+    private readonly ExportConfig _config;
+    private readonly ExportDebug _debug = new();
+    private readonly Throttle _exportThrottle = new(); // export seems to close & reopen window?..
 
-    public ExportWindow() : base(Loc.Tr("Exports Automation", "出口自动化"), "MJIDisposeShop", new(400, 600))
-    {
+    public ExportWindow() : base(Loc.Tr("Exports Automation", "出口自动化"), "MJIDisposeShop", new(400, 600)) {
         _config = Service.Config.Get<ExportConfig>();
     }
 
-    public override void PreOpenCheck()
-    {
+    public override void PreOpenCheck() {
         base.PreOpenCheck();
         var agent = AgentMJIDisposeShop.Instance();
         IsOpen &= agent != null && agent->Data != null && agent->Data->DataInitialized;
     }
 
-    public override void OnOpen()
-    {
-        if (_config.AutoSell)
-        {
+    public override void OnOpen() {
+        if (_config.AutoSell) {
             _exportThrottle.Exec(AutoExport, 2);
         }
     }
 
-    public override void Draw()
-    {
+    public override void Draw() {
         using var tabs = ImRaii.TabBar("Tabs");
-        if (tabs)
-        {
+        if (tabs) {
             using (var tab = ImRaii.TabItem(Loc.Tr("Main", "主界面")))
                 if (tab)
                     DrawMain();
@@ -49,8 +42,7 @@ unsafe class ExportWindow : UIAttachedWindow
         }
     }
 
-    private void DrawMain()
-    {
+    private void DrawMain() {
         if (ImGui.Checkbox(Loc.Tr("Auto Export", "自动出货"), ref _config.AutoSell))
             _config.NotifyModified();
         ImGui.PushItemWidth(150);
@@ -68,10 +60,8 @@ unsafe class ExportWindow : UIAttachedWindow
             AutoExport();
     }
 
-    private void AutoExport()
-    {
-        try
-        {
+    private void AutoExport() {
+        try {
             var data = AgentMJIDisposeShop.Instance()->Data;
             int seafarerCowries = data->CurrencyCounts[0], islanderCowries = data->CurrencyCounts[1];
             AutoExportCategory(0, _config.NormalLimit, ref seafarerCowries, ref islanderCowries);
@@ -79,15 +69,13 @@ unsafe class ExportWindow : UIAttachedWindow
             AutoExportCategory(2, _config.FarmLimit, ref seafarerCowries, ref islanderCowries);
             AutoExportCategory(3, _config.PastureLimit, ref seafarerCowries, ref islanderCowries);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             Service.Log.Error($"Error: {ex}");
             Service.ChatGui.PrintError(Loc.Format("Auto export error: {0}", "自动出货出错：{0}", ex.Message));
         }
     }
 
-    private void AutoExportCategory(int category, int limit, ref int seafarerCowries, ref int islanderCowries)
-    {
+    private void AutoExportCategory(int category, int limit, ref int seafarerCowries, ref int islanderCowries) {
         if (limit >= 999)
             return;
         var agent = AgentMJIDisposeShop.Instance();
@@ -98,22 +86,19 @@ unsafe class ExportWindow : UIAttachedWindow
             new() { Type = AtkValueType.UInt, Int = limit }
         ];
         var numItems = 0;
-        foreach (var item in data->PerCategoryItems[category].AsSpan())
-        {
+        foreach (var item in data->PerCategoryItems[category].AsSpan()) {
             var count = Utils.NumItems(item.Value->ItemId);
             if (count <= limit)
                 continue;
 
             var export = count - limit;
             var value = item.Value->CowriesPerItem * export;
-            if (item.Value->UseIslanderCowries)
-            {
+            if (item.Value->UseIslanderCowries) {
                 islanderCowries += value;
                 if (islanderCowries > data->CurrencyStackSizes[1])
                     throw new Exception(Loc.Tr("Islander cowries would overcap", "岛民贝壳币将会溢出"));
             }
-            else
-            {
+            else {
                 seafarerCowries += value;
                 if (seafarerCowries > data->CurrencyStackSizes[0])
                     throw new Exception(Loc.Tr("Seafarer cowries would overcap", "海员贝壳币将会溢出"));

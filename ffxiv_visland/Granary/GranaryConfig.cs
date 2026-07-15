@@ -2,10 +2,8 @@ using visland.Helpers;
 
 namespace visland.Granary;
 
-public class GranaryConfig : Configuration.Node
-{
-    public enum UpdateStrategy
-    {
+public class GranaryConfig : Configuration.Node {
+    public enum UpdateStrategy {
         [LocalizedDescription("Manual", "手动")]
         Manual,
 

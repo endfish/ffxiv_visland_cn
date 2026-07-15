@@ -1,10 +1,5 @@
 ﻿global using static ECommons.GenericHelpers;
 global using static visland.Plugin;
-using System;
-using System.Collections.Specialized;
-using System.Globalization;
-using System.Linq;
-using System.Numerics;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Interface.Windowing;
@@ -15,6 +10,11 @@ using ECommons.Configuration;
 using ECommons.DalamudServices;
 using ECommons.Reflection;
 using ECommons.UIHelpers.AddonMasterImplementations;
+using System;
+using System.Collections.Specialized;
+using System.Globalization;
+using System.Linq;
+using System.Numerics;
 using visland.Export;
 using visland.Farm;
 using visland.Gathering;
@@ -26,8 +26,7 @@ using visland.Workshop;
 
 namespace visland;
 
-public sealed class Plugin : IDalamudPlugin
-{
+public sealed class Plugin : IDalamudPlugin {
     public static string Name => "Visland-CN";
     public static string InternalName => "visland_cn";
     public static string CommandName => "vislandcn";
@@ -58,23 +57,22 @@ public sealed class Plugin : IDalamudPlugin
     internal TaskManager TaskManager;
     internal DataStore DataStore;
 
-    private VislandIPC _vislandIPC;
+    private readonly VislandIPC _vislandIPC;
 
     public WindowSystem WindowSystem = new(InternalName);
-    private GatherWindow _wndGather;
-    private WorkshopWindow _wndWorkshop;
-    private GranaryWindow _wndGranary;
-    private PastureWindow _wndPasture;
-    private FarmWindow _wndFarm;
-    private ExportWindow _wndExports;
+    private readonly GatherWindow _wndGather;
+    private readonly WorkshopWindow _wndWorkshop;
+    private readonly GranaryWindow _wndGranary;
+    private readonly PastureWindow _wndPasture;
+    private readonly FarmWindow _wndFarm;
+    private readonly ExportWindow _wndExports;
 
-    public unsafe Plugin(IDalamudPluginInterface dalamud)
-    {
+    public unsafe Plugin(IDalamudPluginInterface dalamud) {
         var dir = dalamud.ConfigDirectory;
         if (!dir.Exists)
             dir.Create();
 
-        ECommonsMain.Init(dalamud, this, ECommons.Module.DalamudReflector);
+        ECommonsMain.Init(dalamud, this, Module.DalamudReflector);
         DalamudReflector.RegisterOnInstalledPluginsChangedEvents(CheckIPC);
         Service.Init(dalamud);
 
@@ -112,8 +110,7 @@ public sealed class Plugin : IDalamudPlugin
         Svc.AddonLifecycle.RegisterListener(AddonEvent.PreFinalize, ["Gathering", "GatheringMasterpiece"], ClearAddonMasters);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         Svc.AddonLifecycle.UnregisterListener(GenerateAddonMasters);
         Svc.AddonLifecycle.UnregisterListener(ClearAddonMasters);
         WindowSystem.RemoveAllWindows();
@@ -126,16 +123,13 @@ public sealed class Plugin : IDalamudPlugin
         ECommonsMain.Dispose();
     }
 
-    private void OnCommand(string command, string arguments)
-    {
+    private void OnCommand(string command, string arguments) {
         Service.Log.Debug($"cmd: '{command}', args: '{arguments}'");
         if (arguments.Length == 0)
             _wndGather.IsOpen ^= true;
-        else
-        {
+        else {
             var args = arguments.Split(' ');
-            switch (args[0])
-            {
+            switch (args[0]) {
                 case "moveto":
                     if (args.Length > 3)
                         MoveToCommand(args, false);
@@ -173,14 +167,12 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    internal void TryGather(string[] args)
-    {
+    internal void TryGather(string[] args) {
         throw new NotImplementedException();
     }
 
-    internal void ExecuteTempRoute(string base64, bool once)
-    {
-        var (IsBase64, Json) = Utils.FromCompressedBase64(base64);
+    internal void ExecuteTempRoute(string base64, bool once) {
+        var (_, Json) = Utils.FromCompressedBase64(base64);
         var route = Newtonsoft.Json.JsonConvert.DeserializeObject<GatherRouteDB.Route>(Json);
         if (route != null)
             _wndGather.Exec.Start(route, 0, true, !once);
@@ -188,8 +180,7 @@ public sealed class Plugin : IDalamudPlugin
             Svc.Log.Warning($"Failed to deserialize route from clipboard: {base64}");
     }
 
-    internal void MoveToCommand(string[] args, bool relativeToPlayer)
-    {
+    internal void MoveToCommand(string[] args, bool relativeToPlayer) {
         var originActor = relativeToPlayer ? Service.ObjectTable.LocalPlayer : null;
         var origin = originActor?.Position ?? new();
         var offset = new Vector3(float.Parse(args[1], CultureInfo.InvariantCulture), float.Parse(args[2], CultureInfo.InvariantCulture), float.Parse(args[3], CultureInfo.InvariantCulture));
@@ -198,29 +189,24 @@ public sealed class Plugin : IDalamudPlugin
         _wndGather.Exec.Start(route, 0, false, false);
     }
 
-    internal void ExecuteCommand(string name, bool once)
-    {
+    internal void ExecuteCommand(string name, bool once) {
         var route = _wndGather.RouteDB.Routes.Find(r => r.Name == name);
         if (route != null)
             _wndGather.Exec.Start(route, 0, true, !once, route.Waypoints.ElementAt(0).Pathfind);
     }
 
-    private void CheckIPC()
-    {
+    private void CheckIPC() {
         if (Utils.HasPlugin(NavmeshIPC.Name))
             NavmeshIPC.Init();
     }
 
     private static void OnChange(object? sender, NotifyCollectionChangedEventArgs e) => EzConfig.Save();
 
-    private void GenerateAddonMasters(AddonEvent type, AddonArgs args)
-    {
-        switch (args.AddonName)
-        {
+    private void GenerateAddonMasters(AddonEvent type, AddonArgs args) {
+        switch (args.AddonName) {
             case "Gathering":
                 _wndGather.Exec.GatheringAM = new AddonMaster.Gathering(args.Addon);
-                if (_wndGather.Exec.CurrentRoute != null)
-                {
+                if (_wndGather.Exec.CurrentRoute != null) {
                     TaskManager.Enqueue(() => _wndGather.Exec.GatheringAM.GatheredItems.Any(x => x.ItemID != 0));
                     TaskManager.Enqueue(() => _wndGather.Exec.GatheredItem = _wndGather.Exec.GatheringAM.GatheredItems.FirstOrDefault(x => x?.ItemID != 0 && x?.ItemID == (uint)_wndGather.Exec.CurrentRoute.TargetGatherItem, null));
                 }
@@ -231,10 +217,8 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    private void ClearAddonMasters(AddonEvent type, AddonArgs args)
-    {
-        switch (args.AddonName)
-        {
+    private void ClearAddonMasters(AddonEvent type, AddonArgs args) {
+        switch (args.AddonName) {
             case "Gathering":
                 _wndGather.Exec.GatheringAM = null;
                 _wndGather.Exec.GatheredItem = null;

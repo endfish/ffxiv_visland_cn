@@ -1,8 +1,8 @@
-﻿using Dalamud.Game.ClientState.Conditions;
+﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Game.ClientState.Conditions;
 using ECommons;
 using ECommons.DalamudServices;
 using ECommons.ExcelServices;
-using Dalamud.Bindings.ImGui;
 using Lumina.Excel.Sheets;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -16,10 +16,8 @@ using static visland.Gathering.GatherRouteDB;
 
 namespace visland.Gathering;
 
-public class GatherRouteDB : Configuration.Node
-{
-    public enum Movement
-    {
+public class GatherRouteDB : Configuration.Node {
+    public enum Movement {
         [LocalizedDescription("Normal", "步行")]
         Normal = 0,
         [LocalizedDescription("Flying Mount", "飞行坐骑")]
@@ -28,8 +26,7 @@ public class GatherRouteDB : Configuration.Node
         MountNoFly = 2,
     }
 
-    public enum InteractionType
-    {
+    public enum InteractionType {
         [LocalizedDescription("None", "无")]
         None = 0,
         [LocalizedDescription("Standard", "普通交互")]
@@ -49,8 +46,7 @@ public class GatherRouteDB : Configuration.Node
         NodeScan = 12,
     }
 
-    public enum GrindStopConditions
-    {
+    public enum GrindStopConditions {
         [LocalizedDescription("None", "无")]
         None = 0,
         [LocalizedDescription("Kills", "击杀数")]
@@ -61,8 +57,7 @@ public class GatherRouteDB : Configuration.Node
         QuestComplete = 3,
     }
 
-    public enum NodeType : byte
-    {
+    public enum NodeType : byte {
         [LocalizedDescription("Unknown", "未知")]
         Unknown = 0xFF,
         [LocalizedDescription("Regular", "普通")]
@@ -75,14 +70,12 @@ public class GatherRouteDB : Configuration.Node
         Legendary = 3,
     }
 
-    public class Node
-    {
+    public class Node {
         public NodeType Type;
         public int GpThreshold;
     }
 
-    public class Waypoint
-    {
+    public class Waypoint {
         public Vector3 Position;
         public uint ZoneID;
         public float Radius;
@@ -110,16 +103,13 @@ public class GatherRouteDB : Configuration.Node
         public int WaitTimeMs;
         public Vector2 WaitTimeET;
 
-        public bool NeedsMount => Movement == Movement.MountFly || Movement == Movement.MountNoFly;
-        public uint GatheringType => IsNode ? GenericHelpers.GetRow<GatheringPoint>(InteractWithOID)!.Value.GatheringPointBase.Value.GatheringType.RowId : 99;
-        public bool IsNode => GenericHelpers.GetSheet<GatheringPoint>().HasRow(InteractWithOID);
-        public Job NodeJob
-        {
-            get
-            {
+        public bool NeedsMount => Movement is Movement.MountFly or Movement.MountNoFly;
+        public uint GatheringType => IsNode ? GetRow<GatheringPoint>(InteractWithOID)!.Value.GatheringPointBase.Value.GatheringType.RowId : 99;
+        public bool IsNode => GetSheet<GatheringPoint>().HasRow(InteractWithOID);
+        public Job NodeJob {
+            get {
                 if (!IsNode) return Job.ADV;
-                return GatheringType switch
-                {
+                return GatheringType switch {
                     0 or 1 => Job.MIN,
                     2 or 3 => Job.BTN,
                     4 or 5 => Job.FSH,
@@ -131,8 +121,7 @@ public class GatherRouteDB : Configuration.Node
         public List<Vector3>? Path;
     }
 
-    public class Route
-    {
+    public class Route {
         public string Name = "";
         public string Group = "";
         public int Food = 0;
@@ -163,20 +152,16 @@ public class GatherRouteDB : Configuration.Node
     public int PathFindCancellationTime = 5;
     public bool AutoGather = false;
 
-    public override void Deserialize(JObject j, JsonSerializer ser)
-    {
+    public override void Deserialize(JObject j, JsonSerializer ser) {
         Routes.Clear();
-        if (j["Routes"] is JArray ja)
-        {
-            foreach (var jr in ja)
-            {
+        if (j["Routes"] is JArray ja) {
+            foreach (var jr in ja) {
                 var jn = jr["Name"]?.Value<string>();
                 var jg = jr["Group"]?.Value<string>();
                 var jf = jr["Food"]?.Value<int>();
                 var jm = jr["Manual"]?.Value<int>();
                 var ji = jr["TargetGatherItem"]?.Value<int>();
-                if (jn != null && jr["Waypoints"] is JArray jw)
-                {
+                if (jn != null && jr["Waypoints"] is JArray jw) {
                     if (jg != null)
                         Routes.Add(new Route() { Name = jn, Group = jg, Food = jf ?? 0, Manual = jm ?? 0, TargetGatherItem = ji ?? 0, Waypoints = LoadFromJSONWaypoints(jw) });
                     else
@@ -205,11 +190,9 @@ public class GatherRouteDB : Configuration.Node
         GlobalManual = (int?)j["GlobalManual"] ?? 0;
     }
 
-    public override JObject Serialize(JsonSerializer ser)
-    {
+    public override JObject Serialize(JsonSerializer ser) {
         JArray res = [];
-        foreach (var r in Routes)
-        {
+        foreach (var r in Routes) {
             res.Add(new JObject()
             {
                 { "Name", r.Name },
@@ -240,12 +223,10 @@ public class GatherRouteDB : Configuration.Node
         };
     }
 
-    public static JArray SaveToJSONWaypoints(List<Waypoint> waypoints)
-    {
+    public static JArray SaveToJSONWaypoints(List<Waypoint> waypoints) {
         JArray jw = [];
 
-        foreach (var wp in waypoints)
-        {
+        foreach (var wp in waypoints) {
             if (wp.IsPhantom) continue;
             var wpObj = new JObject
             {
@@ -281,19 +262,15 @@ public class GatherRouteDB : Configuration.Node
         return jw;
     }
 
-    public static List<Waypoint> LoadFromJSONWaypoints(JArray j)
-    {
+    public static List<Waypoint> LoadFromJSONWaypoints(JArray j) {
         List<Waypoint> res = [];
 
-        try
-        {
-            foreach (var jwe in j)
-            {
+        try {
+            foreach (var jwe in j) {
                 if (jwe is not JObject jweObj)
                     continue;
 
-                res.Add(new()
-                {
+                res.Add(new() {
                     Position = new Vector3(
                         jweObj["X"]?.Value<float>() ?? 0,
                         jweObj["Y"]?.Value<float>() ?? 0,
@@ -325,19 +302,16 @@ public class GatherRouteDB : Configuration.Node
                 });
             }
         }
-        catch (Exception)
-        {
+        catch (Exception) {
             Svc.Log.Error($"Failed to load waypoints from JSON.");
         }
 
         return res;
     }
 
-    public static List<string> GetGroups(GatherRouteDB gatherRouteDB, bool sort = false)
-    {
+    public static List<string> GetGroups(GatherRouteDB gatherRouteDB, bool sort = false) {
         List<string> groups = ["Ungrouped"];
-        for (var g = 0; g < gatherRouteDB.Routes.Count; g++)
-        {
+        for (var g = 0; g < gatherRouteDB.Routes.Count; g++) {
             var routeSource = gatherRouteDB.Routes;
             if (string.IsNullOrEmpty(routeSource[g].Group))
                 routeSource[g].Group = "Ungrouped";
@@ -350,10 +324,8 @@ public class GatherRouteDB : Configuration.Node
         return groups;
     }
 
-    public static void TryImport(GatherRouteDB RouteDB)
-    {
-        try
-        {
+    public static void TryImport(GatherRouteDB RouteDB) {
+        try {
             var data = ImGui.GetClipboardText();
             var (IsBase64, Json) = Utils.FromCompressedBase64(data);
             Route? import = null;
@@ -361,39 +333,32 @@ public class GatherRouteDB : Configuration.Node
                 import = JsonConvert.DeserializeObject<Route>(Json);
             else if (Utils.IsJson(data))
                 import = JsonConvert.DeserializeObject<Route>(data);
-            if (import != null)
-            {
+            if (import != null) {
                 if (import.Waypoints.Any(x => (x.Pathfind || x.Interaction == InteractionType.NodeScan) && !NavmeshIPC.IsEnabled))
                     Svc.Chat.Print(Loc.Tr(
-                        $"[{Plugin.Name}] Imported route uses pathfinding, but vnavmesh is not installed. It's located on the same repo as {Plugin.Name} ({Plugin.Repo}).",
-                        $"[{Plugin.Name}] 导入的路线使用了路径规划，但当前未安装 vnavmesh。它和 {Plugin.Name} 在同一个仓库里（{Plugin.Repo}）。"));
+                        $"[{Name}] Imported route uses pathfinding, but vnavmesh is not installed. It's located on the same repo as {Name} ({Repo}).",
+                        $"[{Name}] 导入的路线使用了路径规划，但当前未安装 vnavmesh。它和 {Name} 在同一个仓库里（{Repo}）。"));
 
                 RouteDB.Routes.Add(new() { Name = import!.Name, Group = import.Group, Food = import.Food, Manual = import.Manual, TargetGatherItem = import.TargetGatherItem, Waypoints = import.Waypoints });
                 RouteDB.NotifyModified();
             }
         }
-        catch (JsonReaderException ex)
-        {
+        catch (JsonReaderException ex) {
             Service.ChatGui.PrintError(Loc.Format("Failed to import route: {0}", "导入路线失败：{0}", ex.Message));
             Service.Log.Error(ex, Loc.Tr("Failed to import route", "导入路线失败"));
         }
     }
 }
 
-public static class WaypointExtensions
-{
-    public static bool TryGetNextWaypoint(this Waypoint waypoint, Route route, bool loop, out Waypoint? nextWaypoint)
-    {
+public static class WaypointExtensions {
+    public static bool TryGetNextWaypoint(this Waypoint waypoint, Route route, bool loop, out Waypoint? nextWaypoint) {
         var index = route.Waypoints.IndexOf(waypoint);
-        if (index >= 0 && index < route.Waypoints.Count - 1)
-        {
+        if (index >= 0 && index < route.Waypoints.Count - 1) {
             nextWaypoint = route.Waypoints[index + 1];
             return true;
         }
-        else
-        {
-            if (loop)
-            {
+        else {
+            if (loop) {
                 nextWaypoint = route.Waypoints.First();
                 return true;
             }
@@ -402,8 +367,7 @@ public static class WaypointExtensions
         }
     }
 
-    public static void AddWaypointsAfter(this Waypoint waypoint, Route route, List<Waypoint> waypoints)
-    {
+    public static void AddWaypointsAfter(this Waypoint waypoint, Route route, List<Waypoint> waypoints) {
         var index = route.Waypoints.IndexOf(waypoint);
         route.Waypoints.InsertRange(index + 1, waypoints);
     }

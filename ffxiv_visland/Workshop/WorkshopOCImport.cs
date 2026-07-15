@@ -1,4 +1,5 @@
-﻿using Dalamud.Game;
+﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Game;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
@@ -7,7 +8,6 @@ using ECommons;
 using ECommons.ImGuiMethods;
 using FFXIVClientStructs.FFXIV.Client.Game.MJI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
-using Dalamud.Bindings.ImGui;
 using Lumina.Data;
 using Lumina.Excel;
 using Lumina.Excel.Sheets;
@@ -20,35 +20,31 @@ using visland.Helpers;
 
 namespace visland.Workshop;
 
-public unsafe class WorkshopOCImport
-{
+public unsafe class WorkshopOCImport {
     public WorkshopSolver.Recs Recommendations = new();
 
-    private WorkshopConfig _config;
-    private ExcelSheet<MJICraftworksObject> _craftSheet;
-    private List<string> _displayNames;
-    private List<string> _botNames;
-    private List<List<string>> _searchAliases;
-    private List<Func<bool>> _pendingActions = [];
+    private readonly WorkshopConfig _config;
+    private readonly ExcelSheet<MJICraftworksObject> _craftSheet;
+    private readonly List<string> _displayNames;
+    private readonly List<string> _botNames;
+    private readonly List<List<string>> _searchAliases;
+    private readonly List<Func<bool>> _pendingActions = [];
     private bool IgnoreFourthWorkshop;
 
-    public WorkshopOCImport()
-    {
+    public WorkshopOCImport() {
         _config = Service.Config.Get<WorkshopConfig>();
-        _craftSheet = GenericHelpers.GetSheet<MJICraftworksObject>(); // unlocalised sheet can't be fetched in english
-        _displayNames = _craftSheet.Select(r => r.Item.Value.Name.ExtractText()).ToList();
-        _botNames = _craftSheet.Select(r => OfficialNameToBotName(GenericHelpers.GetRow<Item>(r.Item.RowId, ClientLanguage.English)!.Value.Name.ExtractText())).ToList();
-        _searchAliases = _craftSheet.Select(BuildSearchAliases).ToList();
+        _craftSheet = GetSheet<MJICraftworksObject>(); // unlocalised sheet can't be fetched in english
+        _displayNames = [.. _craftSheet.Select(r => r.Item.Value.Name.ExtractText())];
+        _botNames = [.. _craftSheet.Select(r => OfficialNameToBotName(GetRow<Item>(r.Item.RowId, ClientLanguage.English)!.Value.Name.ExtractText()))];
+        _searchAliases = [.. _craftSheet.Select(BuildSearchAliases)];
     }
 
-    public void Update()
-    {
+    public void Update() {
         var numDone = _pendingActions.TakeWhile(f => f()).Count();
         _pendingActions.RemoveRange(0, numDone);
     }
 
-    public void Draw()
-    {
+    public void Draw() {
         using var globalDisable = ImRaii.Disabled(_pendingActions.Count > 0); // disallow any manipulations while delayed actions are in progress
 
         if (ImGui.Button(Loc.Tr("Import Recommendations From Clipboard", "从剪贴板导入推荐排班")))
@@ -72,8 +68,7 @@ public unsafe class WorkshopOCImport
 
         ImGui.Separator();
 
-        if (!_config.UseFavorSolver)
-        {
+        if (!_config.UseFavorSolver) {
             ImGui.TextUnformatted(Loc.Tr("Favours", "特供"));
             ImGuiComponents.HelpMarker(Loc.Tr(
                 "Click the \"This Week's Favors\" or \"Next Week's Favors\" button to generate a bot command for the OC discord for your favors.\n" +
@@ -100,8 +95,7 @@ public unsafe class WorkshopOCImport
             if (ImGui.Button(Loc.Tr("Override closest workshops with favor schedules from clipboard", "用剪贴板中的特供排班尽快覆盖可用工坊")))
                 OverrideSideRecsAsapClipboard();
         }
-        else
-        {
+        else {
             ImGuiEx.TextV(Loc.Tr("Override 4th workshop with favors:", "用特供覆盖第 4 工坊："));
             ImGui.SameLine();
             if (ImGui.Button($"{Loc.Tr("This Week", "本周")}##4th"))
@@ -136,48 +130,39 @@ public unsafe class WorkshopOCImport
         DrawCycleRecommendations();
     }
 
-    public void ImportRecsFromClipboard(bool silent)
-    {
-        try
-        {
+    public void ImportRecsFromClipboard(bool silent) {
+        try {
             Recommendations = ParseRecs(ImGui.GetClipboardText());
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             ReportError(Loc.Format("Error: {0}", "错误：{0}", ex.Message), silent);
         }
     }
 
-    private void DrawCycleRecommendations()
-    {
+    private void DrawCycleRecommendations() {
         var tableFlags = ImGuiTableFlags.RowBg | ImGuiTableFlags.NoKeepColumnsVisible;
         var maxWorkshops = WorkshopUtils.GetMaxWorkshops();
 
         using var scrollSection = ImRaii.Child("ScrollableSection");
-        foreach (var (c, r) in Recommendations.Enumerate())
-        {
+        foreach (var (c, r) in Recommendations.Enumerate()) {
             ImGuiEx.TextV(Loc.Format("Cycle {0}:", "周期 {0}：", c));
             ImGui.SameLine();
             if (ImGui.Button($"{Loc.Tr("Set on Active Cycle", "设置到当前周期")}##{c}"))
                 ApplyRecommendationToCurrentCycle(r);
 
             using var outerTable = ImRaii.Table($"table_{c}", r.Workshops.Count, tableFlags);
-            if (outerTable)
-            {
+            if (outerTable) {
                 var workshopLimit = r.Workshops.Count - (IgnoreFourthWorkshop && r.Workshops.Count > 1 ? 1 : 0);
-                if (r.Workshops.Count <= 1)
-                {
+                if (r.Workshops.Count <= 1) {
                     ImGui.TableSetupColumn(IgnoreFourthWorkshop ? Loc.Format("Workshops 1-{0}", "工坊 1-{0}", maxWorkshops - 1) : Loc.Tr("All Workshops", "全部工坊"));
                 }
-                else if (r.Workshops.Count < maxWorkshops)
-                {
+                else if (r.Workshops.Count < maxWorkshops) {
                     var numDuplicates = 1 + maxWorkshops - r.Workshops.Count;
                     ImGui.TableSetupColumn(Loc.Format("Workshops 1-{0}", "工坊 1-{0}", numDuplicates));
                     for (var i = 1; i < workshopLimit; ++i)
                         ImGui.TableSetupColumn(Loc.Format("Workshop {0}", "工坊 {0}", i + numDuplicates));
                 }
-                else
-                {
+                else {
                     // favors
                     for (var i = 0; i < workshopLimit; ++i)
                         ImGui.TableSetupColumn(Loc.Format("Workshop {0}", "工坊 {0}", i + 1));
@@ -185,15 +170,12 @@ public unsafe class WorkshopOCImport
                 ImGui.TableHeadersRow();
 
                 ImGui.TableNextRow();
-                for (var i = 0; i < workshopLimit; ++i)
-                {
+                for (var i = 0; i < workshopLimit; ++i) {
                     ImGui.TableNextColumn();
                     using var innerTable = ImRaii.Table($"table_{c}_{i}", 2, tableFlags);
-                    if (innerTable)
-                    {
+                    if (innerTable) {
                         ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed);
-                        foreach (var rec in r.Workshops[i].Slots)
-                        {
+                        foreach (var rec in r.Workshops[i].Slots) {
                             ImGui.TableNextRow();
 
                             ImGui.TableNextColumn();
@@ -211,11 +193,9 @@ public unsafe class WorkshopOCImport
         }
     }
 
-    private unsafe string CreateFavorRequestCommand(bool nextWeek)
-    {
+    private unsafe string CreateFavorRequestCommand(bool nextWeek) {
         var state = MJIManager.Instance()->FavorState;
-        if (state == null || state->UpdateState != 2)
-        {
+        if (state == null || state->UpdateState != 2) {
             ReportError(Loc.Format("Favor data not available: {0}", "特供数据不可用：{0}", state->UpdateState));
             return "";
         }
@@ -223,8 +203,7 @@ public unsafe class WorkshopOCImport
         var sheetCraft = Service.LuminaGameData.GetExcelSheet<MJICraftworksObject>(Language.English)!;
         var res = "/favors";
         var offset = nextWeek ? 6 : 3;
-        for (var i = 0; i < 3; ++i)
-        {
+        for (var i = 0; i < 3; ++i) {
             var id = state->CraftObjectIds[offset + i];
             // the bot doesn't like names with apostrophes because it "breaks their formulas"
             var name = sheetCraft.GetRow(id).Item.Value.Name;
@@ -234,35 +213,28 @@ public unsafe class WorkshopOCImport
         return res;
     }
 
-    private void OverrideSideRecsLastWorkshopClipboard()
-    {
-        try
-        {
+    private void OverrideSideRecsLastWorkshopClipboard() {
+        try {
             var overrideRecs = ParseRecOverrides(ImGui.GetClipboardText());
             if (overrideRecs.Count > Recommendations.Schedules.Count)
                 throw new Exception(Loc.Format("Override list is longer than base schedule: {0} > {1}", "覆盖列表比基础排班更长：{0} > {1}", overrideRecs.Count, Recommendations.Schedules.Count));
             OverrideSideRecsLastWorkshop(overrideRecs);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             ReportError(Loc.Format("Error: {0}", "错误：{0}", ex.Message));
         }
     }
 
-    private void OverrideSideRecsLastWorkshopSolver(bool nextWeek)
-    {
+    private void OverrideSideRecsLastWorkshopSolver(bool nextWeek) {
         EnsureDemandFavorsAvailable();
-        _pendingActions.Add(() =>
-        {
+        _pendingActions.Add(() => {
             OverrideSideRecsLastWorkshop(SolveRecOverrides(nextWeek));
             return true;
         });
     }
 
-    private void OverrideSideRecsLastWorkshop(List<WorkshopSolver.WorkshopRec> overrides)
-    {
-        foreach (var (r, o) in Recommendations.Schedules.Zip(overrides))
-        {
+    private void OverrideSideRecsLastWorkshop(List<WorkshopSolver.WorkshopRec> overrides) {
+        foreach (var (r, o) in Recommendations.Schedules.Zip(overrides)) {
             // if base recs have >1 workshop, remove last (assume we always want to override 4th workshop)
             if (r.Workshops.Count > 1)
                 r.Workshops.RemoveAt(r.Workshops.Count - 1);
@@ -270,39 +242,32 @@ public unsafe class WorkshopOCImport
             r.Workshops.Add(o);
         }
         if (overrides.Count > Recommendations.Schedules.Count)
-            Service.ChatGui.Print(Loc.Tr("Warning: couldn't fit all overrides into base schedule", "警告：无法将所有覆盖排班完整塞入基础排班"), Plugin.Name);
+            Service.ChatGui.Print(Loc.Tr("Warning: couldn't fit all overrides into base schedule", "警告：无法将所有覆盖排班完整塞入基础排班"), Name);
     }
 
-    private void OverrideSideRecsAsapClipboard()
-    {
-        try
-        {
+    private void OverrideSideRecsAsapClipboard() {
+        try {
             var overrideRecs = ParseRecOverrides(ImGui.GetClipboardText());
             if (overrideRecs.Count > Recommendations.Schedules.Count * 4)
                 throw new Exception(Loc.Format("Override list is longer than base schedule: {0} > 4 * {1}", "覆盖列表比基础排班更长：{0} > 4 * {1}", overrideRecs.Count, Recommendations.Schedules.Count));
             OverrideSideRecsAsap(overrideRecs);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             ReportError(Loc.Format("Error: {0}", "错误：{0}", ex.Message));
         }
     }
 
-    private void OverrideSideRecsAsapSolver(bool nextWeek)
-    {
+    private void OverrideSideRecsAsapSolver(bool nextWeek) {
         EnsureDemandFavorsAvailable();
-        _pendingActions.Add(() =>
-        {
+        _pendingActions.Add(() => {
             OverrideSideRecsAsap(SolveRecOverrides(nextWeek));
             return true;
         });
     }
 
-    private void OverrideSideRecsAsap(List<WorkshopSolver.WorkshopRec> overrides)
-    {
+    private void OverrideSideRecsAsap(List<WorkshopSolver.WorkshopRec> overrides) {
         var nextOverride = 0;
-        foreach (var r in Recommendations.Schedules)
-        {
+        foreach (var r in Recommendations.Schedules) {
             var batchSize = Math.Min(4, overrides.Count - nextOverride);
             if (batchSize == 0)
                 break; // nothing left to override
@@ -317,50 +282,42 @@ public unsafe class WorkshopOCImport
             nextOverride += batchSize;
         }
         if (nextOverride < overrides.Count)
-            Service.ChatGui.Print(Loc.Tr("Warning: couldn't fit all overrides into base schedule", "警告：无法将所有覆盖排班完整塞入基础排班"), Plugin.Name);
+            Service.ChatGui.Print(Loc.Tr("Warning: couldn't fit all overrides into base schedule", "警告：无法将所有覆盖排班完整塞入基础排班"), Name);
     }
 
-    private WorkshopSolver.Recs ParseRecs(string str)
-    {
+    private WorkshopSolver.Recs ParseRecs(string str) {
         if (LooksLikeChineseDocFormat(str))
             return ParseChineseDocRecs(str);
 
         return ParseOcRecs(str);
     }
 
-    private WorkshopSolver.Recs ParseOcRecs(string str)
-    {
+    private WorkshopSolver.Recs ParseOcRecs(string str) {
         var result = new WorkshopSolver.Recs();
 
         var curRec = new WorkshopSolver.DayRec();
         var nextSlot = 24;
         var curCycle = 0;
-        foreach (var l in str.Split('\n', '\r'))
-        {
-            if (TryParseCycleStart(l, out var cycle))
-            {
+        foreach (var l in str.Split('\n', '\r')) {
+            if (TryParseCycleStart(l, out var cycle)) {
                 // complete previous cycle; if the number was not known, assume it is next cycle - 1
                 result.Add(curCycle > 0 ? curCycle : cycle - 1, curRec);
                 curRec = new();
                 nextSlot = 24;
                 curCycle = cycle;
             }
-            else if (l == "First 3 Workshops" || l == "All Workshops")
-            {
+            else if (l is "First 3 Workshops" or "All Workshops") {
                 // just a sanity check...
                 if (!curRec.Empty)
                     throw new Exception(Loc.Tr("Unexpected start of 1st workshop recs", "第一个工坊推荐排班的起始位置异常"));
             }
-            else if (l == "4th Workshop")
-            {
+            else if (l == "4th Workshop") {
                 // ensure next item goes into new rec list
                 // TODO: do we want to add an extra empty list if this is the first line?..
                 nextSlot = 24;
             }
-            else if (TryParseItem(l) is var item && item != null)
-            {
-                if (nextSlot + item.Value.CraftingTime > 24)
-                {
+            else if (TryParseItem(l) is var item && item != null) {
+                if (nextSlot + item.Value.CraftingTime > 24) {
                     // start next workshop schedule
                     curRec.Workshops.Add(new());
                     nextSlot = 0;
@@ -378,26 +335,22 @@ public unsafe class WorkshopOCImport
         return result;
     }
 
-    private WorkshopSolver.Recs ParseChineseDocRecs(string str)
-    {
+    private WorkshopSolver.Recs ParseChineseDocRecs(string str) {
         var result = new WorkshopSolver.Recs();
         var anyCycle = false;
 
-        foreach (var rawLine in str.Split('\n', '\r'))
-        {
+        foreach (var rawLine in str.Split('\n', '\r')) {
             var line = rawLine.Trim();
             if (line.Length == 0)
                 continue;
 
-            if (!TryParseChineseCycleLine(line, out var cycle, out var payload))
-            {
+            if (!TryParseChineseCycleLine(line, out var cycle, out var payload)) {
                 Service.Log.Verbose($"Failed to parse CN line {line}");
                 continue;
             }
 
             anyCycle = true;
-            if (IsChineseRestDay(payload))
-            {
+            if (IsChineseRestDay(payload)) {
                 result.Add(cycle, new());
                 continue;
             }
@@ -407,8 +360,7 @@ public unsafe class WorkshopOCImport
             dayRec.Workshops.Add(workshopRec);
 
             var nextSlot = 0;
-            foreach (var token in SplitChineseScheduleItems(payload))
-            {
+            foreach (var token in SplitChineseScheduleItems(payload)) {
                 var item = TryParseItem(token) ?? throw new Exception(Loc.Format("Could not match item: {0}", "无法识别道具：{0}", token));
                 if (nextSlot + item.CraftingTime > 24)
                     throw new Exception(Loc.Format("Schedule for cycle {0} exceeds 24 hours", "周期 {0} 的排班超过了 24 小时", cycle));
@@ -429,8 +381,7 @@ public unsafe class WorkshopOCImport
         return result;
     }
 
-    private static bool TryParseCycleStart(string str, out int cycle)
-    {
+    private static bool TryParseCycleStart(string str, out int cycle) {
         // OC has two formats:
         // - single day recs are 'Season N (mmm dd-dd), Cycle C Recommendations'
         // - multi day recs are 'Season N (mmm dd-dd) Cycle K-L Recommendations' followed by 'Cycle C'
@@ -438,21 +389,18 @@ public unsafe class WorkshopOCImport
             return int.TryParse(str.AsSpan(6, 1), out cycle);
         else if (str.StartsWith("Season ") && str.IndexOf(", Cycle ") is var cycleStart && cycleStart > 0)
             return int.TryParse(str.AsSpan(cycleStart + 8, 1), out cycle);
-        else
-        {
+        else {
             cycle = 0;
             return false;
         }
     }
 
-    private MJICraftworksObject? TryParseItem(string line)
-    {
+    private MJICraftworksObject? TryParseItem(string line) {
         var matchingRows = _searchAliases
             .Select((aliases, i) => (aliases, i))
             .Where(t => t.aliases.Any(a => !string.IsNullOrEmpty(a) && IsMatch(line, a)))
             .ToList();
-        if (matchingRows.Count > 1)
-        {
+        if (matchingRows.Count > 1) {
             matchingRows = [.. matchingRows.OrderByDescending(t => MatchingScore(t.aliases, line))];
             Service.Log.Info($"Row '{line}' matches {matchingRows.Count} items: {string.Join(", ", matchingRows.Select(r => _displayNames[r.i]))}\n" +
                 "First one is most likely the correct match. Please report if this is wrong.");
@@ -460,9 +408,7 @@ public unsafe class WorkshopOCImport
         return matchingRows.Count > 0 ? _craftSheet.GetRow((uint)matchingRows.First().i) : null;
     }
 
-
-    private static bool IsMatch(string line, string alias)
-    {
+    private static bool IsMatch(string line, string alias) {
         if (ContainsNonAscii(alias))
             return line.Contains(alias, StringComparison.OrdinalIgnoreCase);
 
@@ -474,22 +420,17 @@ public unsafe class WorkshopOCImport
 
     private static bool ContainsNonAscii(string text) => text.Any(c => c > 127);
 
-    private List<WorkshopSolver.WorkshopRec> ParseRecOverrides(string str)
-    {
+    private List<WorkshopSolver.WorkshopRec> ParseRecOverrides(string str) {
         var result = new List<WorkshopSolver.WorkshopRec>();
         var nextSlot = 24;
 
-        foreach (var l in str.Split('\n', '\r'))
-        {
-            if (l.StartsWith("Schedule #"))
-            {
+        foreach (var l in str.Split('\n', '\r')) {
+            if (l.StartsWith("Schedule #")) {
                 // ensure next item goes into new rec list
                 nextSlot = 24;
             }
-            else if (TryParseItem(l) is var item && item != null)
-            {
-                if (nextSlot + item.Value.CraftingTime > 24)
-                {
+            else if (TryParseItem(l) is var item && item != null) {
+                if (nextSlot + item.Value.CraftingTime > 24) {
                     // start next workshop schedule
                     result.Add(new());
                     nextSlot = 0;
@@ -504,52 +445,45 @@ public unsafe class WorkshopOCImport
         return result;
     }
 
-    private unsafe List<WorkshopSolver.WorkshopRec> SolveRecOverrides(bool nextWeek)
-    {
+    private unsafe List<WorkshopSolver.WorkshopRec> SolveRecOverrides(bool nextWeek) {
         var mji = MJIManager.Instance();
         if (!mji->IsPlayerInSanctuary) return [];
         var state = new WorkshopSolver.FavorState();
         var offset = nextWeek ? 6 : 3;
-        for (var i = 0; i < 3; ++i)
-        {
+        for (var i = 0; i < 3; ++i) {
             state.CraftObjectIds[i] = mji->FavorState->CraftObjectIds[i + offset];
             state.CompletedCounts[i] = mji->FavorState->NumDelivered[i + offset] + mji->FavorState->NumScheduled[i + offset];
         }
-        if (!mji->DemandDirty)
-        {
+        if (!mji->DemandDirty) {
             state.Popularity.Set(nextWeek ? mji->NextPopularity : mji->CurrentPopularity);
         }
 
-        try
-        {
+        try {
             return new WorkshopSolverFavorSheet(state).Recs;
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             ReportError(ex.Message);
             Service.Log.Error($"Current favors: {state.CraftObjectIds[0]} #{state.CompletedCounts[0]}, {state.CraftObjectIds[1]} #{state.CompletedCounts[1]}, {state.CraftObjectIds[2]} #{state.CompletedCounts[2]}");
             return [];
         }
     }
 
-    public static string OfficialNameToBotName(string name)
-    {
+    public static string OfficialNameToBotName(string name) {
         // why do they keep fucking changing this!?
         if (name.StartsWith("Isleworks "))
-            return name.Remove(0, 10);
+            return name[10..];
         //if (name.StartsWith("Isleberry "))
         //    return name.Remove(0, 10);
         if (name.StartsWith("Islefish "))
-            return name.Remove(0, 9);
+            return name[9..];
         if (name.StartsWith("Island "))
-            return name.Remove(0, 7);
+            return name[7..];
         if (name == "Mammet of the Cycle Award")
             return "Mammet Award";
         return name;
     }
 
-    private List<string> BuildSearchAliases(MJICraftworksObject row)
-    {
+    private List<string> BuildSearchAliases(MJICraftworksObject row) {
         var aliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var localizedName = row.Item.Value.Name.ExtractText();
 
@@ -557,28 +491,24 @@ public unsafe class WorkshopOCImport
         AddAliasVariants(aliases, OfficialNameToBotName(localizedName));
         AddAliasVariants(aliases, _botNames[(int)row.RowId]);
 
-        return aliases.OrderByDescending(a => a.Length).ToList();
+        return [.. aliases.OrderByDescending(a => a.Length)];
     }
 
-    private static void AddAliasVariants(HashSet<string> aliases, string name)
-    {
-        foreach (var alias in ExpandAliases(name))
-        {
+    private static void AddAliasVariants(HashSet<string> aliases, string name) {
+        foreach (var alias in ExpandAliases(name)) {
             var trimmed = alias.Trim();
             if (trimmed.Length > 0)
                 aliases.Add(trimmed);
         }
     }
 
-    private static IEnumerable<string> ExpandAliases(string name)
-    {
+    private static IEnumerable<string> ExpandAliases(string name) {
         if (string.IsNullOrWhiteSpace(name))
             yield break;
 
         yield return name;
 
-        foreach (var prefix in new[] { "Isleworks ", "Islefish ", "Island ", "开拓工房", "海岛", "无人岛" })
-        {
+        foreach (var prefix in new[] { "Isleworks ", "Islefish ", "Island ", "开拓工房", "海岛", "无人岛" }) {
             if (name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 yield return name[prefix.Length..];
         }
@@ -590,11 +520,9 @@ public unsafe class WorkshopOCImport
     private static bool LooksLikeChineseDocFormat(string text)
         => text.Split('\n', '\r').Any(line => TryParseChineseCycleLine(line.Trim(), out _, out _));
 
-    private static bool TryParseChineseCycleLine(string line, out int cycle, out string payload)
-    {
+    private static bool TryParseChineseCycleLine(string line, out int cycle, out string payload) {
         var match = Regex.Match(line, @"^[Dd](?<cycle>[1-7])\s*[:：]\s*(?<payload>.+)$");
-        if (match.Success)
-        {
+        if (match.Success) {
             cycle = int.Parse(match.Groups["cycle"].Value);
             payload = match.Groups["payload"].Value.Trim();
             return true;
@@ -608,8 +536,7 @@ public unsafe class WorkshopOCImport
     private static bool IsChineseRestDay(string payload)
         => payload is "休息" or "休息日";
 
-    private static IEnumerable<string> SplitChineseScheduleItems(string payload)
-    {
+    private static IEnumerable<string> SplitChineseScheduleItems(string payload) {
         payload = Regex.Replace(payload.Trim(), @"^\d+\s*[xX×＊*]\s*", string.Empty);
         return payload
             .Split(['、', '，', ',', '；', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -617,17 +544,14 @@ public unsafe class WorkshopOCImport
             .Where(item => item.Length > 0);
     }
 
-    private unsafe void EnsureDemandFavorsAvailable()
-    {
-        if (MJIManager.Instance()->DemandDirty)
-        {
+    private unsafe void EnsureDemandFavorsAvailable() {
+        if (MJIManager.Instance()->DemandDirty) {
             WorkshopUtils.RequestDemandFavors();
             _pendingActions.Add(() => !MJIManager.Instance()->DemandDirty && MJIManager.Instance()->FavorState->UpdateState == 2);
         }
     }
 
-    private unsafe void ApplyRecommendation(int cycle, WorkshopSolver.DayRec rec)
-    {
+    private unsafe void ApplyRecommendation(int cycle, WorkshopSolver.DayRec rec) {
         var maxWorkshops = WorkshopUtils.GetMaxWorkshops();
         foreach (var w in rec.Enumerate(maxWorkshops))
             if (!IgnoreFourthWorkshop || w.workshop < maxWorkshops - 1)
@@ -635,19 +559,16 @@ public unsafe class WorkshopOCImport
                     WorkshopUtils.ScheduleItemToWorkshop(r.CraftObjectId, r.Slot, cycle, w.workshop);
     }
 
-    private void ApplyRecommendationToCurrentCycle(WorkshopSolver.DayRec rec)
-    {
+    private void ApplyRecommendationToCurrentCycle(WorkshopSolver.DayRec rec) {
         var cycle = AgentMJICraftSchedule.Instance()->Data->CycleDisplayed;
         ApplyRecommendation(cycle, rec);
         WorkshopUtils.ResetCurrentCycleToRefreshUI();
     }
 
-    private void ApplyRecommendations(bool nextWeek)
-    {
+    private void ApplyRecommendations(bool nextWeek) {
         // TODO: clear recs!
 
-        try
-        {
+        try {
             var agentData = AgentMJICraftSchedule.Instance()->Data;
             if (Recommendations.Schedules.Count > 5)
                 throw new Exception(Loc.Format("Too many days in recs: {0}", "推荐排班天数过多：{0}", Recommendations.Schedules.Count));
@@ -657,8 +578,7 @@ public unsafe class WorkshopOCImport
                 throw new Exception(Loc.Tr("Some of the cycles in schedule are already in progress or are done", "排班中的部分周期已经开始或已经结束"));
 
             var currentRestCycles = nextWeek ? agentData->RestCycles >> 7 : agentData->RestCycles & 0x7F;
-            if ((currentRestCycles & Recommendations.CyclesMask) != 0)
-            {
+            if ((currentRestCycles & Recommendations.CyclesMask) != 0) {
                 // we need to change rest cycles - set to C1 and last unused
                 var freeCycles = ~Recommendations.CyclesMask & 0x7F;
                 if ((freeCycles & 1) == 0)
@@ -680,14 +600,12 @@ public unsafe class WorkshopOCImport
                 ApplyRecommendation(c - 1 + (nextWeek ? 7 : 0), r);
             WorkshopUtils.ResetCurrentCycleToRefreshUI();
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             ReportError(Loc.Format("Error: {0}", "错误：{0}", ex.Message));
         }
     }
 
-    private static void ReportError(string msg, bool silent = false)
-    {
+    private static void ReportError(string msg, bool silent = false) {
         Service.Log.Error(msg);
         if (!silent)
             Service.ChatGui.PrintError(msg);
