@@ -1,8 +1,7 @@
-﻿using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Utility.Raii;
-using ECommons.ImGuiMethods;
+﻿using Dalamud.Interface.Utility.Raii;
 using FFXIVClientStructs.FFXIV.Client.Game.MJI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using Dalamud.Bindings.ImGui;
 using Lumina.Excel.Sheets;
 using visland.Helpers;
 
@@ -64,9 +63,7 @@ public unsafe class FarmWindow : UIAttachedWindow {
                 if (res != CollectResult.CanCollectSafely) {
                     ImGui.SameLine();
                     using (ImRaii.PushColor(ImGuiCol.Text, 0xff0000ff))
-                        ImGuiEx.TextV(res == CollectResult.EverythingCapped
-                            ? Loc.Tr("Inventory is full!", "背包已满！")
-                            : Loc.Tr("Warning: some resources will overcap!", "警告：部分资源会溢出！"));
+                        ImGui.TextV(res == CollectResult.EverythingCapped ? Loc.Tr("Inventory is full!", "背包已满！") : Loc.Tr("Warning: some resources will overcap!", "警告：部分资源会溢出！"));
                 }
             }
         }
@@ -107,7 +104,7 @@ public unsafe class FarmWindow : UIAttachedWindow {
 
                 ImGui.TableNextColumn();
                 using (ImRaii.PushColor(ImGuiCol.Text, full ? 0xff0000ff : 0xff00ffff, overcap))
-                    ImGuiEx.TextV($"{slot.YieldName}: {inventory} + {slot.YieldAvailable} / 999");
+                    ImGui.TextV($"{slot.YieldName}: {inventory} + {slot.YieldAvailable} / 999");
 
                 ImGui.TableNextColumn();
                 if (slot.YieldAvailable > 0) {
@@ -141,8 +138,7 @@ public unsafe class FarmWindow : UIAttachedWindow {
         if (agent == null || agent->TotalAvailableYield <= 0 || mji == null || mji->FarmState == null)
             return CollectResult.NothingToCollect;
 
-        var sheet = Service.LuminaGameData.GetExcelSheet<MJICropSeed>()!;
-        var perCropYield = new int[sheet.Count];
+        var perCropYield = new int[MJICropSeed.Get().Count];
         for (var i = 0; i < 20; ++i) {
             var seed = mji->FarmState->SeedType[i];
             if (seed != 0) {
@@ -156,7 +152,7 @@ public unsafe class FarmWindow : UIAttachedWindow {
             if (perCropYield[i] == 0)
                 continue;
 
-            var inventory = Utils.NumItems(sheet.GetRow((uint)i)!.Item.RowId);
+            var inventory = Utils.NumItems(MJICropSeed.GetRow((uint)i)!.Value.Item.RowId);
             allFull &= inventory >= 999;
             anyOvercap |= inventory + perCropYield[i] > 999;
         }

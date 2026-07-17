@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
 using System;
@@ -9,7 +9,7 @@ using System.Reflection;
 
 namespace visland.Helpers;
 
-public class Configuration {
+public class Configuration : IDisposable {
     // base class for configuration nodes
     public abstract class Node {
         public event EventHandler? Modified;
@@ -24,7 +24,7 @@ public class Configuration {
         // deserialize fields from json; default implementation should work fine for most cases
         public virtual void Deserialize(JObject j, JsonSerializer ser) {
             var type = GetType();
-            foreach ((string? f, var data) in j) {
+            foreach ((var f, var data) in j) {
                 var field = type.GetField(f);
                 if (field != null) {
                     var value = data?.ToObject(field.FieldType, ser);
@@ -45,18 +45,41 @@ public class Configuration {
 
     public event EventHandler? Modified;
     private readonly Dictionary<Type, Node> _nodes = [];
+    private readonly EventHandler _forwardNodeModified;
+    private EventHandler? _saveHandler;
+    private FileInfo? _file;
 
     public IEnumerable<Node> Nodes => _nodes.Values;
 
-    public void Initialize() {
+    public Configuration() {
+        _forwardNodeModified = (sender, args) => Modified?.Invoke(sender, args);
+    }
+
+    public void Initialize(FileInfo configFile) {
+        _file = configFile;
         foreach (var t in Utils.GetDerivedTypes<Node>(Assembly.GetExecutingAssembly()).Where(t => !t.IsAbstract)) {
             if (Activator.CreateInstance(t) is not Node inst) {
                 Service.Log.Error($"[Config] Failed to create an instance of {t}");
                 continue;
             }
-            inst.Modified += (sender, args) => Modified?.Invoke(sender, args);
+            inst.Modified += _forwardNodeModified;
             _nodes[t] = inst;
         }
+
+        if (configFile.Exists)
+            LoadFromFile(configFile);
+
+        _saveHandler = (_, _) => SaveToFile(_file);
+        Modified += _saveHandler;
+    }
+
+    public void Dispose() {
+        if (_saveHandler != null)
+            Modified -= _saveHandler;
+
+        foreach (var node in _nodes.Values)
+            node.Modified -= _forwardNodeModified;
+        _nodes.Clear();
     }
 
     public T Get<T>() where T : Node => (T)_nodes[typeof(T)];
@@ -70,7 +93,7 @@ public class Configuration {
             if (json["Payload"] is JObject payload) {
                 payload = ConvertConfig(payload, version);
                 var ser = BuildSerializer();
-                foreach ((string? t, var j) in payload) {
+                foreach ((var t, var j) in payload) {
                     var type = Type.GetType(t);
                     var node = type != null ? _nodes.GetValueOrDefault(type) : null;
                     if (node != null && j is JObject jObj) {
@@ -120,7 +143,6 @@ public class Configuration {
         }
         // v3: turned waypoints into an array of jobjects
         if (version < 3) {
-            //var routes = payload["RouteDB"];
             if (payload["visland.Gathering.GatherRouteDB"] is JObject gatherRouteDB) {
                 if (gatherRouteDB["Routes"] is JArray routes) {
                     JArray newRoutes = [];

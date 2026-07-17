@@ -1,5 +1,4 @@
 ﻿using Dalamud.Interface.Utility.Raii;
-using ECommons.ImGuiMethods;
 using FFXIVClientStructs.FFXIV.Client.Game.MJI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Dalamud.Bindings.ImGui;
@@ -13,28 +12,31 @@ using System;
 namespace visland.Workshop;
 
 public unsafe class WorkshopDebug {
-    private readonly WorkshopSolver _solver = new();
     private readonly UITree _tree = new();
-    private WorkshopSolver.FavorState _favorState = new();
-    private WorkshopSolverFavorSheet? _favorSolution;
+    private WorkshopSolver.FavourState _favourState = new();
+    private WorkshopSolverFavourSheet? _favourSolution;
     private readonly string[] _itemNames;
 
     public WorkshopDebug() {
-        _itemNames = Service.LuminaGameData.GetExcelSheet<MJICraftworksObject>()!.Select(o => o.Item.Value.Name.ToString()).ToArray();
+        _itemNames = [.. MJICraftworksObject.Get().Select(o => o.Item.Value.Name.ToString())];
     }
 
     public void Draw() {
         if (ImGui.Button("Clear current cycle"))
             WorkshopUtils.ClearCurrentCycleSchedule();
         ImGui.SameLine();
-        if (ImGui.Button("Refresh favors/demand"))
-            WorkshopUtils.RequestDemandFavors();
+        if (ImGui.Button("Refresh favours/demand"))
+            WorkshopUtils.RequestDemandFavours();
+
+        ImGui.SameLine();
+        if (ImGui.Button("Void 2nd rest (this week)"))
+            WorkshopUtils.VoidSecondRestThisWeek();
 
         var curWeek = WorkshopUtils.CurrentWeek();
         _tree.LeafNode($"Current week: #{curWeek.index}, started at {curWeek.startTime}");
 
         var ad = AgentMJICraftSchedule.Instance()->Data;
-        var sheet = Service.LuminaGameData.GetExcelSheet<MJICraftworksObject>(Language.English)!;
+        var sheet = MJICraftworksObject.Get(Dalamud.Game.ClientLanguage.English);
         foreach (var na in _tree.Node($"Agent data: {(nint)ad:X}", ad == null)) {
             _tree.LeafNode($"updatestate={ad->UpdateState}, level={ad->IslandLevel}");
             _tree.LeafNode($"addons: modal={ad->OpenedModalAddonHandle} ({ad->OpenedModalAddonId}, review={ad->ReviewMaterialsAddonHandle}, confirm={ad->ConfirmAddonHandle}");
@@ -45,6 +47,7 @@ public unsafe class WorkshopDebug {
             _tree.LeafNode($"rest mask={ad->RestCycles:X}, proposed={ad->NewRestCycles:X}, prompt={ad->ConfirmPrompt}");
             _tree.LeafNode($"flags1={ad->Flags1}");
             _tree.LeafNode($"flags2={ad->Flags2}");
+            _tree.LeafNode($"CraftworksRestDays: [{string.Join(", ", WorkshopUtils.GetCurrentRestCycles())}]");
 
             var i = 0;
             foreach (ref var w in ad->WorkshopSchedules)
@@ -106,50 +109,50 @@ public unsafe class WorkshopDebug {
             DrawPopularity("Next", mji->NextPopularity);
         }
 
-        var favorsData = mji->FavorState;
-        var dataAvail = favorsData != null ? favorsData->UpdateState : -1;
-        foreach (var nf in _tree.Node($"Favors: avail={dataAvail}", dataAvail != 2)) {
-            DrawFavorState(0, "Prev");
-            DrawFavorState(3, "This");
-            DrawFavorState(6, "Next");
-            DrawFavorSetup(0, 4, 8);
-            DrawFavorSetup(1, 6, 6);
-            DrawFavorSetup(2, 8, 8);
-            ImGuiEx.TextV("Init from game week:");
+        var favoursData = mji->FavorState;
+        var dataAvail = favoursData != null ? favoursData->UpdateState : -1;
+        foreach (var nf in _tree.Node($"Favours: avail={dataAvail}", dataAvail != 2)) {
+            DrawFavourState(0, "Prev");
+            DrawFavourState(3, "This");
+            DrawFavourState(6, "Next");
+            DrawFavourSetup(0, 4, 8);
+            DrawFavourSetup(1, 6, 6);
+            DrawFavourSetup(2, 8, 8);
+            ImGui.TextV("Init from game week:");
             ImGui.SameLine();
             if (ImGui.Button("Fetch demand"))
-                WorkshopUtils.RequestDemandFavors();
+                WorkshopUtils.RequestDemandFavours();
             ImGui.SameLine();
             if (ImGui.Button("Prev"))
-                InitFavorsFromGame(0, -1);
+                InitFavoursFromGame(0, -1);
             using (ImRaii.Disabled(mji->DemandDirty)) {
                 ImGui.SameLine();
                 if (ImGui.Button("This"))
-                    InitFavorsFromGame(3, mji->CurrentPopularity);
+                    InitFavoursFromGame(3, mji->CurrentPopularity);
                 ImGui.SameLine();
                 if (ImGui.Button("Next"))
-                    InitFavorsFromGame(6, mji->NextPopularity);
+                    InitFavoursFromGame(6, mji->NextPopularity);
             }
 
             if (ImGui.Button("Solve!"))
-                _favorSolution = new(_favorState);
+                _favourSolution = new(_favourState);
 
-            if (_favorSolution != null) {
-                _tree.LeafNode($"Plan: {_favorSolution.Plan}");
+            if (_favourSolution != null) {
+                _tree.LeafNode($"Plan: {_favourSolution.Plan}");
                 foreach (var n in _tree.Node("Links")) {
-                    DrawLinked(_favorSolution.Favors[0], 4, _favorSolution.Links[0][0]);
-                    DrawLinked(_favorSolution.Favors[0], 6, _favorSolution.Links[0][1]);
-                    DrawLinked(_favorSolution.Favors[0], 8, _favorSolution.Links[0][2]);
-                    DrawLinked(_favorSolution.Favors[1], 4, _favorSolution.Links[1][0]);
-                    DrawLinked(_favorSolution.Favors[1], 6, _favorSolution.Links[1][1]);
-                    DrawLinked(_favorSolution.Favors[1], 8, _favorSolution.Links[1][2]);
-                    DrawLinked(_favorSolution.Favors[2], 4, _favorSolution.Links[2][0]);
-                    DrawLinked(_favorSolution.Favors[2], 6, _favorSolution.Links[2][1]);
-                    DrawLinked(_favorSolution.Favors[2], 8, _favorSolution.Links[2][2]);
+                    DrawLinked(_favourSolution.Favours[0], 4, _favourSolution.Links[0][0]);
+                    DrawLinked(_favourSolution.Favours[0], 6, _favourSolution.Links[0][1]);
+                    DrawLinked(_favourSolution.Favours[0], 8, _favourSolution.Links[0][2]);
+                    DrawLinked(_favourSolution.Favours[1], 4, _favourSolution.Links[1][0]);
+                    DrawLinked(_favourSolution.Favours[1], 6, _favourSolution.Links[1][1]);
+                    DrawLinked(_favourSolution.Favours[1], 8, _favourSolution.Links[1][2]);
+                    DrawLinked(_favourSolution.Favours[2], 4, _favourSolution.Links[2][0]);
+                    DrawLinked(_favourSolution.Favours[2], 6, _favourSolution.Links[2][1]);
+                    DrawLinked(_favourSolution.Favours[2], 8, _favourSolution.Links[2][2]);
                 }
-                foreach (var n in _tree.Node($"Solution ({_favorSolution.Recs.Count} cycles)", _favorSolution.Recs.Count == 0)) {
+                foreach (var n in _tree.Node($"Solution ({_favourSolution.Recs.Count} cycles)", _favourSolution.Recs.Count == 0)) {
                     var i = 0;
-                    foreach (var r in _tree.Nodes(_favorSolution.Recs, r => new($"Schedule {i++}"))) {
+                    foreach (var r in _tree.Nodes(_favourSolution.Recs, r => new($"Schedule {i++}"))) {
                         _tree.LeafNodes(r.Slots, s => $"{s.Slot}: {s.CraftObjectId} '{sheet.GetRow(s.CraftObjectId).Item.Value.Name}'");
                     }
                 }
@@ -161,7 +164,7 @@ public unsafe class WorkshopDebug {
         foreach (var n in _tree.Node($"{tag}: {w.NumScheduleEntries} entries, {w.NumEfficientCrafts} eff, {w.UsedTimeSlots:X} used", w.NumScheduleEntries == 0)) {
             for (var j = 0; j < w.NumScheduleEntries; ++j) {
                 ref var e = ref w.EntryData[j];
-                _tree.LeafNode($"Item {j}: {e.CraftObjectId} ({Service.LuminaRow<MJICraftworksObject>(e.CraftObjectId)?.Item.Value.Name}), flags={e.Flags} startslot={e.StartingSlot}, dur={e.Duration}, started={e.Started}, efficient={e.Efficient}");
+                _tree.LeafNode($"Item {j}: {e.CraftObjectId} ({MJICraftworksObject.GetRow(e.CraftObjectId)?.Item.Value.Name}), flags={e.Flags} startslot={e.StartingSlot}, dur={e.Duration}, started={e.Started}, efficient={e.Efficient}");
             }
         }
     }
@@ -170,14 +173,13 @@ public unsafe class WorkshopDebug {
         _tree.LeafNode($"index={entry.EntryIndex} unk={entry.uDC}");
         for (var i = 0; i < 109; ++i)
             if (entry.UsedAmounts[i] != 0)
-                _tree.LeafNode($"{Service.LuminaRow<MJIItemPouch>((uint)i)?.Item.Value.Name} = {entry.UsedAmounts[i]}");
+                _tree.LeafNode($"{MJIItemPouch.GetRow((uint)i)?.Item.Value.Name} = {entry.UsedAmounts[i]}");
     }
 
     private void DrawPopularity(string tag, byte index) {
-        var sheetCraft = Service.LuminaGameData.GetExcelSheet<MJICraftworksObject>()!;
-        var pop = Service.LuminaRow<MJICraftworksPopularity>(index)!;
+        var pop = MJICraftworksPopularity.GetRow(index)!;
         foreach (var np in _tree.Node($"{tag} popularity={index}")) {
-            _tree.LeafNodes(sheetCraft.Where(o => o.RowId > 0), o => {
+            _tree.LeafNodes(MJICraftworksObject.Get().Where(o => o.RowId > 0), o => {
                 if (o.RowId < pop.Value.Popularity.Count)
                     return $"{o.RowId} '{o.Item.Value.Name}' = {pop.Value.Popularity[(int)o.RowId].Value.Ratio}";
                 else
@@ -186,38 +188,37 @@ public unsafe class WorkshopDebug {
         }
     }
 
-    private void DrawFavorState(int offset, string tag) {
+    private void DrawFavourState(int offset, string tag) {
         var f = MJIManager.Instance()->FavorState;
-        foreach (var n in _tree.Node($"{tag} favor state")) {
+        foreach (var n in _tree.Node($"{tag} favour state")) {
             for (var i = 0; i < 3; ++i) {
                 var idx = f->CraftObjectIds[i + offset];
-                _tree.LeafNode($"{idx} '{Service.LuminaRow<MJICraftworksObject>(idx)?.Item.Value.Name}': delivered={f->NumDelivered[i + offset]}, scheduled={f->NumScheduled[i + offset]}, bonus={f->Bonus(i + offset)}, shipped={f->Shipped(i + offset)}");
+                _tree.LeafNode($"{idx} '{MJICraftworksObject.GetRow(idx)?.Item.Value.Name}': delivered={f->NumDelivered[i + offset]}, scheduled={f->NumScheduled[i + offset]}, bonus={f->Bonus(i + offset)}, shipped={f->Shipped(i + offset)}");
             }
         }
     }
 
-    private void DrawFavorSetup(int idx, int duration, int req) {
-        var sheet = Service.LuminaGameData.GetExcelSheet<MJICraftworksObject>()!;
-        ImGuiEx.TextV($"{duration}h:");
+    private void DrawFavourSetup(int idx, int duration, int req) {
+        ImGui.TextV($"{duration}h:");
         ImGui.SameLine();
-        UICombo.UInt($"###c{idx}", _itemNames, ref _favorState.CraftObjectIds[idx], i => i != 0 && sheet.GetRow(i).CraftingTime == duration);
+        UICombo.UInt($"###c{idx}", _itemNames, ref _favourState.CraftObjectIds[idx], i => i != 0 && MJICraftworksObject.GetRow(i)?.CraftingTime == duration);
         ImGui.SameLine();
-        ImGui.DragInt($"###r{idx}", ref _favorState.CompletedCounts[idx], 0.03f, 0, req);
+        ImGui.DragInt($"###r{idx}", ref _favourState.CompletedCounts[idx], 0.03f, 0, req);
     }
 
-    private void InitFavorsFromGame(int offset, int pop) {
+    private void InitFavoursFromGame(int offset, int pop) {
         var state = MJIManager.Instance()->FavorState;
         for (var i = 0; i < 3; ++i) {
-            _favorState.CraftObjectIds[i] = state->CraftObjectIds[i + offset];
-            _favorState.CompletedCounts[i] = state->NumDelivered[i + offset] + state->NumScheduled[i + offset];
+            _favourState.CraftObjectIds[i] = state->CraftObjectIds[i + offset];
+            _favourState.CompletedCounts[i] = state->NumDelivered[i + offset] + state->NumScheduled[i + offset];
         }
         if (pop >= 0) {
-            _favorState.Popularity.Set((uint)pop);
+            _favourState.Popularity.Set((uint)pop);
         }
     }
 
     private void DrawLinked(MJICraftworksObject obj, int duration, List<MJICraftworksObject> links) {
-        foreach (var n in _tree.Node($"{duration}h linked to {obj.CraftingTime}h favor ({obj.Theme[0].Value.Name}/{obj.Theme[1].Value.Name})", links.Count == 0))
-            _tree.Nodes(links, o => new($"{o.RowId} '{o.Item.Value.Name}' {o.Theme[0].Value.Name}/{o.Theme[1].Value.Name} == {o.Value * _favorState.Popularity.Multiplier(o.RowId):f1}", true, _favorSolution!.Favors.Contains(o) ? 0xff00ff00 : 0xffffffff)).Count();
+        foreach (var n in _tree.Node($"{duration}h linked to {obj.CraftingTime}h favour ({obj.Theme[0].Value.Name}/{obj.Theme[1].Value.Name})", links.Count == 0))
+            _tree.Nodes(links, o => new($"{o.RowId} '{o.Item.Value.Name}' {o.Theme[0].Value.Name}/{o.Theme[1].Value.Name} == {o.Value * _favourState.Popularity.Multiplier(o.RowId):f1}", true, _favourSolution!.Favours.Contains(o) ? 0xff00ff00 : 0xffffffff)).Count();
     }
 }

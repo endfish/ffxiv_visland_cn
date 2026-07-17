@@ -1,5 +1,5 @@
-﻿using Dalamud.Bindings.ImGui;
-using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+﻿using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using Dalamud.Bindings.ImGui;
 using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
@@ -13,7 +13,7 @@ public class WorkshopManual {
 
     public void Draw() {
         ImGui.InputText(Loc.Tr("Filter", "筛选"), ref _filter, 256);
-        var sheetCraft = Service.LuminaGameData.GetExcelSheet<MJICraftworksObject>()!;
+        var sheetCraft = MJICraftworksObject.Get();
         foreach (var row in sheetCraft) {
             var name = row.Item.Value.Name.ToString() ?? "";
             if (name.Length == 0 || !name.Contains(_filter, StringComparison.InvariantCultureIgnoreCase))
@@ -72,7 +72,7 @@ public class WorkshopManual {
         while ((usedMask & slotMask << startingCycle) != 0 && startingCycle <= maxCycle)
             ++startingCycle;
         if (startingCycle > maxCycle) {
-            ReportError(Loc.Format("No free spots in workshop {0}", "工坊 {0} 没有空闲档位", workshopIndex + 1));
+            ReportError(Loc.Format("No free spots in workshop {0}", "第 {0} 工坊没有空余时段", workshopIndex + 1));
             return;
         }
 

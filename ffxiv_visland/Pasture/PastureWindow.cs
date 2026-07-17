@@ -1,6 +1,5 @@
 ﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
-using ECommons.ImGuiMethods;
 using FFXIVClientStructs.FFXIV.Client.Game.MJI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using visland.Helpers;
@@ -67,15 +66,13 @@ unsafe class PastureWindow : UIAttachedWindow {
                 if (res != CollectResult.CanCollectSafely) {
                     ImGui.SameLine();
                     using (ImRaii.PushColor(ImGuiCol.Text, 0xff0000ff))
-                        ImGuiEx.TextV(res == CollectResult.EverythingCapped
-                            ? Loc.Tr("Inventory is full!", "背包已满！")
-                            : Loc.Tr("Warning: some resources will overcap!", "警告：部分资源会溢出！"));
+                        ImGui.TextV(res == CollectResult.EverythingCapped ? Loc.Tr("Inventory is full!", "背包已满！") : Loc.Tr("Warning: some resources will overcap!", "警告：部分资源会溢出！"));
                 }
             }
         }
         else {
             // TODO: think about any other global operations?
-            ImGuiEx.TextV(Loc.Tr("Nothing to collect!", "没有可收取的产物！"));
+            ImGui.TextV(Loc.Tr("Nothing to collect!", "没有可收取的产物！"));
         }
     }
 
@@ -87,7 +84,7 @@ unsafe class PastureWindow : UIAttachedWindow {
         var haveNone = true;
         var anyOvercap = false;
         var allFull = true;
-        foreach (var (itemId, count) in mji->PastureHandler->AvailableMammetLeavings) {
+        foreach ((var itemId, var count) in mji->PastureHandler->AvailableMammetLeavings) {
             if (count <= 0)
                 continue;
             haveNone = false;

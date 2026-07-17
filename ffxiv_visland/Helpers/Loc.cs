@@ -3,10 +3,8 @@ using System.Globalization;
 
 namespace visland.Helpers;
 
-internal static class Loc
-{
-    internal enum UiLanguage
-    {
+internal static class Loc {
+    internal enum UiLanguage {
         English,
         SimplifiedChinese,
     }
@@ -21,8 +19,7 @@ internal static class Loc
     public static string Format(string english, string simplifiedChinese, params object[] args)
         => string.Format(CultureInfo.CurrentCulture, Tr(english, simplifiedChinese), args);
 
-    private static UiLanguage DetectLanguage()
-    {
+    private static UiLanguage DetectLanguage() {
         var overrideLanguage = Environment.GetEnvironmentVariable("VISLAND_UI_LANG");
         if (string.Equals(overrideLanguage, "en", StringComparison.OrdinalIgnoreCase))
             return UiLanguage.English;

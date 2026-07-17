@@ -20,11 +20,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="ECommons" Version="3.2.0.2" />
-		<PackageReference Include="YamlDotNet" Version="16.3.0" />
+		<ProjectReference Include="..\AutoRetainerAPI\AutoRetainerAPI\AutoRetainerAPI.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\AutoRetainerAPI\AutoRetainerAPI\AutoRetainerAPI.csproj" />
+		<EmbeddedResource Include="Workshop\Data\workshop-seasons.json" LogicalName="visland.Workshop.Data.workshop-seasons.json" />
 	</ItemGroup>
 </Project>
