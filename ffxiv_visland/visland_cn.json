@@ -3,6 +3,7 @@
   "Name": "Visland-CN",
   "Punchline": "无人岛自动化工具（中文汉化版）",
   "Description": "自动处理采集、工坊排班等无人岛事务。",
+  "Changelog": "同步上游至 0.0.0.151，改进采集路线执行与界面，更新 AutoRetainer IPC 联动并移除旧 API 子模块依赖；保留简体中文界面与国服工坊排班导入。",
   "InternalName": "visland_cn",
   "ApplicableVersion": "any",
   "IconUrl": "https://raw.githubusercontent.com/endfish/ffxiv_visland_cn/master/icon.png"
