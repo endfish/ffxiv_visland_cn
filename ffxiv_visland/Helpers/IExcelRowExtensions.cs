@@ -1,5 +1,4 @@
-﻿using ECommons.DalamudServices;
-using Lumina.Excel;
+﻿using Lumina.Excel;
 using Lumina.Extensions;
 using System;
 using System.Collections.Generic;
@@ -23,5 +22,5 @@ public static class IExcelRowExtensions {
     }
 
     private static IEnumerable<T> EnumerateSubrows<T>(Dalamud.Game.ClientLanguage? language = null) where T : struct, IExcelSubrow<T>
-        => Svc.Data.GetSubrowExcelSheet<T>(language: language).SelectMany(r => r);
+        => Service.DataManager.GetSubrowExcelSheet<T>(language: language).SelectMany(r => r);
 }

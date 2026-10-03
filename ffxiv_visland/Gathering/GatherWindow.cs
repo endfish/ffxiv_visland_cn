@@ -1,10 +1,10 @@
-﻿using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Bindings.ImGui;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
-using Dalamud.Bindings.ImGui;
 using Lumina.Excel.Sheets;
 using Newtonsoft.Json;
 using System;
@@ -33,7 +33,8 @@ public class GatherWindow : Window {
     private Vector4 redColor = new Vector4(0xD9, 0x53, 0x4F, 0xFF) / 0xFF;
 
     private string searchString = string.Empty;
-    private readonly List<Route> FilteredRoutes = [];
+    private readonly List<Route> _filteredRoutes = [];
+    private List<Route> VisibleRoutes => searchString.Length > 0 ? _filteredRoutes : RouteDB.Routes;
     private FontAwesomeIcon PlayIcon => Exec.CurrentRoute != null && !Exec.Paused ? FontAwesomeIcon.Pause : FontAwesomeIcon.Play;
     private string PlayTooltip => Exec.CurrentRoute == null ? Loc.Tr("Start Route", "开始路线") : Exec.Paused ? Loc.Tr("Resume Route", "继续路线") : Loc.Tr("Pause Route", "暂停路线");
 
@@ -134,15 +135,8 @@ public class GatherWindow : Window {
             ImGui.TextV(Loc.Tr("Search: ", "搜索："));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(-1);
-            if (ImGui.InputText("###RouteSearch", ref searchString, 500)) {
-                FilteredRoutes.Clear();
-                if (searchString.Length > 0) {
-                    foreach (var route in RouteDB.Routes) {
-                        if (route.Name.Contains(searchString, StringComparison.CurrentCultureIgnoreCase) || route.Group.Contains(searchString, StringComparison.CurrentCultureIgnoreCase))
-                            FilteredRoutes.Add(route);
-                    }
-                }
-            }
+            if (ImGui.InputText("###RouteSearch", ref searchString, 500))
+                RefreshFilteredRoutes();
 
             ImGui.Separator();
 
@@ -150,9 +144,8 @@ public class GatherWindow : Window {
                 var groups = GetGroups(RouteDB, true);
                 foreach (var group in groups) {
                     foreach (var _ in _tree.Node($"{DisplayGroup(group)}###{groups.IndexOf(group)}", contextMenu: () => ContextMenuGroup(group))) {
-                        var routeSource = FilteredRoutes.Count > 0 ? FilteredRoutes : RouteDB.Routes;
-                        for (var i = 0; i < routeSource.Count; i++) {
-                            var route = routeSource[i];
+                        for (var i = 0; i < VisibleRoutes.Count; i++) {
+                            var route = VisibleRoutes[i];
                             var routeGroup = string.IsNullOrEmpty(route.Group) ? "None" : route.Group;
                             if (routeGroup == group) {
                                 if (ImGui.Selectable($"{route.Name} ({Loc.Format("{0} steps", "{0} 步", route.Waypoints.Count)})###{i}", i == selectedRouteIndex))
@@ -168,6 +161,14 @@ public class GatherWindow : Window {
                 }
             }
         }
+    }
+
+    private void RefreshFilteredRoutes() {
+        _filteredRoutes.Clear();
+        if (searchString.Length == 0)
+            return;
+
+        _filteredRoutes.AddRange(RouteDB.Routes.Where(route => route.Name.Contains(searchString, StringComparison.CurrentCultureIgnoreCase) || route.Group.Contains(searchString, StringComparison.CurrentCultureIgnoreCase)));
     }
 
     internal static bool RapidImportEnabled = false;
@@ -252,7 +253,7 @@ public class GatherWindow : Window {
     private void DrawEditor(Vector2 size) {
         if (selectedRouteIndex == -1) return;
 
-        var routeSource = FilteredRoutes.Count > 0 ? FilteredRoutes : RouteDB.Routes;
+        var routeSource = VisibleRoutes;
         if (routeSource.Count == 0) return;
         var route = selectedRouteIndex >= routeSource.Count ? routeSource.Last() : routeSource[selectedRouteIndex];
 
@@ -287,6 +288,8 @@ public class GatherWindow : Window {
                     if (Exec.CurrentRoute == route)
                         Exec.Finish();
                     RouteDB.Routes.Remove(route);
+                    RefreshFilteredRoutes();
+                    selectedRouteIndex = Math.Min(selectedRouteIndex, VisibleRoutes.Count - 1);
                     RouteDB.NotifyModified();
                 }
             }
